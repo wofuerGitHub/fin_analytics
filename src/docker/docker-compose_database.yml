@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+
+  fmp_db:
+    image: mysql:8.0.35
+    container_name: fin_db
+    networks:
+      - default_network
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: fin
+    ports:
+      - "127.0.0.1:3311:3306"
+    volumes:
+      - fin_db_vol:/var/lib/mysql
+
+volumes:
+  fin_db_vol:
+    name: fin_db_vol
+    external: true
+
+networks:
+  default_network:
+    external: true
