@@ -36,7 +36,7 @@ start = datetime.now()
 
 for i in range(0, len(symbol)):
 
-    ts_i = datagroup.get_group(symbol[i])
+    ts_i = datagroup.get_group(symbol[i]).copy()
     # ts_i.set_index('date', inplace = True)
     ts_i.drop(columns=['symbol'], inplace = True)
     pvs = performanceAndVolaAndSR(ts_i, years = 1)
@@ -45,14 +45,18 @@ for i in range(0, len(symbol)):
 
     for j in range(i, len(symbol)):
         if symbol[i] != symbol[j]:
-            ts_j = datagroup.get_group(symbol[j])
+            ts_j = datagroup.get_group(symbol[j]).copy()
             # ts_j.set_index('date', inplace = True)
             ts_j.drop(columns=['symbol'], inplace = True)
             corr_ij = ts_i.pct_change().corrwith(ts_j.pct_change(), axis = 0)
+            """
             result = result.append({'symbol_i': symbol[i], 'perf': pvs[0].close, \
                 'vola': pvs[1].close, 'sr': pvs[2].close, \
                 'symbol_j': symbol[j], 'corr_ij': corr_ij.close}, ignore_index = True)
-
+            """
+            result = result._append({'symbol_i': symbol[i], 'perf': pvs[0], \
+                'vola': pvs[1].close, 'sr': pvs[2].close, \
+                'symbol_j': symbol[j], 'corr_ij': corr_ij.close}, ignore_index = True)
     print(result)
     end = datetime.now()
     print('another_halfcycle: ', mid-start)

@@ -7,17 +7,19 @@ import pandas as pd
 import sqlalchemy as sql
 
 from mylib.config import getDatabaseHost
+from mylib.config import getDatabasePort
 from mylib.config import getDatabaseSchema
 from mylib.config import getDatabaseUser
 from mylib.config import getDatabasePassword
 
 
 HOST = getDatabaseHost()
+PORT = getDatabasePort()
 DB = getDatabaseSchema()
 USER = getDatabaseUser()
 PW = getDatabasePassword()
 
-CONNECTION_STRING = 'mysql+pymysql://'+USER+':'+PW+'@'+HOST+'/'+DB+''
+CONNECTION_STRING = 'mysql+pymysql://'+USER+':'+PW+'@'+HOST+':'+PORT+'/'+DB+''
 sql_engine = sql.create_engine(CONNECTION_STRING)
 
 def get_mysql_data(table:str):

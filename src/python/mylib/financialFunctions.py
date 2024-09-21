@@ -49,7 +49,8 @@ def standardizeTimeSerie(timeSerie, startDate = 'first', endDate = 'last'):
     timeSerie = timeSerie.resample('D').ffill()           # generate sample size one-day and fill-forward missing elements / 'D' = calender day
     selection = pd.date_range(startDate, endDate, freq='B') # generate selection from startDate to endDate with weekdays / 'B' business weekday
     timeSerie = timeSerie.asof(selection)                 # get subset of ts according selection and interpolate remaining ()
-    timeSerie = timeSerie.fillna(method='bfill')                       # fill-up also dates before the first original one
+    # timeSerie = timeSerie.fillna(method='bfill')                       # fill-up also dates before the first original one
+    timeSerie = timeSerie.bfill()                       # fill-up also dates before the first original one
     timeSerie.sort_index(ascending = ascendingOrder, inplace = True)    # ensure descending sorting (idx 0 = newest date)
     return timeSerie
 
@@ -82,8 +83,9 @@ def performanceAndVolaAndSR(timeSerie, years = 1):
     min_date -= pd.DateOffset(years = years)                                            # min. date calculated on param
     if min_date >= min(timeSerie.index):                                                # if ts is sufficient
         delta = np.log(timeSerie.loc[min_date:max_date].pct_change()+1)                 # calculate based on log to dampen outliner
-        performance = (np.power(np.power(1+np.mean(delta),len(delta)),1/years)-1)*100   # performance (annualized)
-        vola = np.std(delta)*np.sqrt(len(delta))*100/np.sqrt(years)                     # vola (annualized)
+        # performance = (np.power(np.power(1+np.mean(delta),len(delta)),1/years)-1)*100   # performance (annualized)
+        performance = (np.power(np.power(1+np.mean(delta, axis = 0),len(delta)),1/years)-1)*100
+        vola = np.std(delta, axis = 0)*np.sqrt(len(delta))*100/np.sqrt(years)                     # vola (annualized)
         sharpeRatio = performance/vola                                                   # sharpe-ratio (annualized)
         timeSerie.sort_index(ascending = ascendingOrder, inplace = True)                # ensure descending sorting (idx 0 = newest date)
         return performance, vola, sharpeRatio

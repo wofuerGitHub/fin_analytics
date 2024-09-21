@@ -26,11 +26,15 @@ import json
 def load_config(file = "config.json"):
     with open(file, "r") as f:
         config = json.load(f)
-    return config
+    return config['analytics']
 
 def getDatabaseHost():
     config = load_config()
     return config['database']['host']
+
+def getDatabasePort():
+    config = load_config()
+    return config['database']['port']
 
 def getDatabaseSchema():
     config = load_config()

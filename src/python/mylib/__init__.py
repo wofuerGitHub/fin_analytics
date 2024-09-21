@@ -18,6 +18,7 @@ from .investment_db import get_fx_list
 
 from .config import load_config
 from .config import getDatabaseHost
+from .config import getDatabasePort
 from .config import getDatabaseSchema
 from .config import getDatabaseUser
 from .config import getDatabasePassword
