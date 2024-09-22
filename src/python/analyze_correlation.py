@@ -10,7 +10,7 @@ from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate perf
 from mylib.investment_db import get_quote_eur_timeserie_all_1y
 from mylib.investment_db import put_dataframe_to_table
 
-LOG_FILE = './fin_suite4.log'                                           # load log-file
+LOG_FILE = './analytics.log'                                            # load log-file
 
 writeLog(LOG_FILE,'calculate correlations started', id = 'FCA')    # log-start
 

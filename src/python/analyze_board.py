@@ -13,7 +13,7 @@ from mylib.investment_db import get_mysql_data
 from mylib.investment_db import put_dataframe_to_table
 from mylib.writeLog import writeLog
 
-LOG_FILE = './fin_suite4.log'                        # load log-file
+LOG_FILE = './analytics.log'                      # load log-file
 writeLog(LOG_FILE,'validate board started', id = 'VAB')    # log-start
 
 # --- BLOCK 1 - Split on years as annual_pivot on the last 7 years
@@ -64,6 +64,7 @@ selected_columns = pks[["isin"]]
 interpolate = selected_columns.copy()
 interpolate = interpolate.drop_duplicates()
 
+pks = pks.drop(['symbol', 'symbol_fundamental'], axis=1)
 grouped_pks = pks.groupby("isin")          # grouping by ts_pk
 # print(grouped_pks.mean().head(10))
 

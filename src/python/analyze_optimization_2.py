@@ -34,7 +34,7 @@ import scipy.optimize as opt
 # plt.style.use('ggplot')
 # matplotlib.use( 'tkagg' )
 
-LOG_FILE = './fin_suite4.log'                                   # load log-file
+LOG_FILE = './analytics.log'                                    # load log-file
 
 writeLog(LOG_FILE,'Portfolio optimization started', id = 'PO2') # log-start
 
