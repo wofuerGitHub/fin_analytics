@@ -81,7 +81,7 @@ def get_company_key_stats_overview():
     return pd.read_sql_query(query, sql_engine)
 
 def get_company_key_stats_currencies():
-    query = "SELECT `currency`, count(*) as `count` FROM fmg.companykeystats WHERE length(`currency`) = 3 GROUP BY `currency` ORDER BY `count` DESC;"
+    query = "SELECT `currency`, count(*) as `count` FROM companykeystats WHERE length(`currency`) = 3 GROUP BY `currency` ORDER BY `count` DESC;"
     return pd.read_sql_query(query, sql_engine)
 
 # ---quotes
@@ -187,8 +187,8 @@ def get_last_earning_price_ratio(symbol:str):
 
 def get_last_bookvalue_price_ratio(symbol:str):
     query = "SELECT a.date as `date`, a.close as `close`, b.bps_eur as `bps`, b.bps_eur/a.close as `bpr` FROM ( \
-        SELECT * FROM fmg.quote_eur WHERE symbol = (SELECT symbol FROM fmg.referencedata WHERE symbol = '"+symbol+"') ORDER BY date DESC LIMIT 1) a \
-        CROSS JOIN (SELECT * FROM fmg.edcbps_eur WHERE symbol = (SELECT symbol_fundamental FROM fmg.referencedata WHERE symbol = '"+symbol+"') AND NOT ISNULL(`bps_eur`) ORDER BY date DESC LIMIT 1) b;"
+        SELECT * FROM quote_eur WHERE symbol = (SELECT symbol FROM referencedata WHERE symbol = '"+symbol+"') ORDER BY date DESC LIMIT 1) a \
+        CROSS JOIN (SELECT * FROM edcbps_eur WHERE symbol = (SELECT symbol_fundamental FROM referencedata WHERE symbol = '"+symbol+"') AND NOT ISNULL(`bps_eur`) ORDER BY date DESC LIMIT 1) b;"
     return pd.read_sql_query(query, sql_engine)
 
 def put_dataframe_to_table(dataframe:str, table:str):
@@ -203,7 +203,7 @@ def get_portfolio():
     return pd.read_sql_query(query, sql_engine)
 
 def get_edcbps_history():
-#    query = "SELECT `date`, `symbol`, `eps_eur` as `eps`, `dps_eur` as `dps`, `cps_eur` as `cps`, `bps_eur` as `bps` FROM fmg.edcbps_eur  WHERE `date` >= (CURDATE() - INTERVAL 7 YEAR);"
+#    query = "SELECT `date`, `symbol`, `eps_eur` as `eps`, `dps_eur` as `dps`, `cps_eur` as `cps`, `bps_eur` as `bps` FROM edcbps_eur  WHERE `date` >= (CURDATE() - INTERVAL 7 YEAR);"
 #    query = "SELECT b.`date`, b.`symbol`, b.`eps_eur` as `eps`, b.`dps_eur` as `dps`, b.`cps_eur` as `cps`, b.`bps_eur` as `bps` from referencedata a LEFT JOIN edcbps_eur b ON a.symbol_fundamental = b.symbol WHERE b.`date` IS NOT NULL AND  b.`date` >= (CURDATE() - INTERVAL 7 YEAR);"
     query = "call get_edcbps_history();"
     return pd.read_sql_query(query, sql_engine)

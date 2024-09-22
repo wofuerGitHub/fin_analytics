@@ -92,8 +92,14 @@ my_portfolio['vola'] = pd.DataFrame(pvs[1])
 my_portfolio['sr'] = pd.DataFrame(pvs[2])
 
 for index, row in my_portfolio.iterrows():                                  # iterate over portfolio and add earning price ratio
-    epr = get_last_earning_price_ratio(index)
-    my_portfolio.loc[index,'epr'] = epr['epr'][0]
+    try:
+        epr = get_last_earning_price_ratio(index)
+        if np.isnan(epr['epr'][0]):
+            my_portfolio.loc[index,'epr'] = 0
+        else:
+            my_portfolio.loc[index,'epr'] = epr['epr'][0]
+    except:
+        my_portfolio.loc[index,'epr'] = 0
 
 for index, row in my_portfolio.iterrows():                                  # iterate over portfolio and add earning price ratio
     try:
