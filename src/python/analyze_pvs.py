@@ -1,8 +1,19 @@
-"""calculate performance & vola & sharpe ratio"""
-
 #!/usr/bin/python3
 
+"""
+File: analyze_pvs.py
+Author: Wolfgang Fuerst
+Date: 2025-01-08
+Description: Calculate performance & vola & sharp ratio over different periods from 1 to 10 years
+Runtime: ...
+Todo: trial was successful, column date on target table "validation_pvs"
+
+Args:
+    None
+"""
+
 import pandas as pd                                             # pandas
+import time
 
 from mylib.writeLog import writeLog                             # write log
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
@@ -34,18 +45,22 @@ for index, row in pks.iterrows():                                       # iterat
     for i in range(1,11):                                               # 10 years of caluclation
         pvs = performanceAndVolaAndSR(ts_normalized, i)                 # calculate for 1y & add
         if pvs:                                                         # only attach successful calculations
+            # df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            result = pd.concat([result, pd.DataFrame([{'symbol': row['symbol'], 'max_date': row['max_date'], \
+                'min_date': row['min_date'], 'period': i, 'perf': pvs[0].close, \
+                'vola': pvs[1].close, 'sr': pvs[2].close}])], ignore_index = True)
             """
             result = result.append({'symbol': row['symbol'], 'max_date': row['max_date'], \
                 'min_date': row['min_date'], 'period': i, 'perf': pvs[0].close, \
                 'vola': pvs[1].close, 'sr': pvs[2].close}, ignore_index = True)
             """
-            result = result._append({'symbol': row['symbol'], 'max_date': row['max_date'], \
-                'min_date': row['min_date'], 'period': i, 'perf': pvs[0], \
-                'vola': pvs[1].close, 'sr': pvs[2].close}, ignore_index = True)
     print('.', end='', flush=True)                                      # show operation
 
 # 3. store dataframe
 
-put_dataframe_to_table(result, 'validation_pvs')
+put_dataframe_to_table(result, 'validation_pvs') # overwrites the table
 
 writeLog(LOG_FILE,'validate performance, vola & sr stopped', id = 'FVP')    # log-stop
+
+# 4. sleep
+time.sleep(36000)

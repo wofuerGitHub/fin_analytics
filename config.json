@@ -1,5 +1,7 @@
-{
-  "analytics": {
+{ "analytics": {
+    "file": {
+      "log": "./fin_analytics.log"
+    },
     "database": {
       "host": "127.0.0.1",
       "port": "3311",
@@ -8,9 +10,11 @@
       "password": "fin",
       "ssl": false
     },
-    "file": {
-      "log": "./fin_analytics.log"
+    "method": {
+      "correlation": {
+        "delay": 5.0
+      }
     },
-    "debug":true
+    "debug": true
   }
 }
