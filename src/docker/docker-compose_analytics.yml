@@ -1,0 +1,45 @@
+# easy config for repetitive paths to volumes
+# variables:
+#  global_variable: value    # this is available to all jobs
+# external network
+x-service_defaults: &service_defaults
+  restart: always
+  tty: true
+  volumes:
+    - '/home/wolfgang/Documents/Coding/fin_analytics/config.json:/code/config.json'
+    - '/home/wolfgang/Documents/Coding/fin_analytics/fin_analytics.log:/code/fin_analytics.log'
+    #  volumes:
+#    - '/home/docker/fmp/config.json:/code/config.json'
+#    - '/home/docker/fmp/fmp_crawler.log:/code/fmp_crawler.log'
+  environment:
+    - TZ=Europe/Berlin
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+  network_mode: host
+
+networks:
+  fmp_network:
+    name: default_network
+    # driver: bridge
+    external: true
+# database
+# services to gather and provide data
+services:
+  fin_analytics_correlation:
+    container_name: fin_analytics_correlation
+    image: fin_analytics_correlation
+    <<: *service_defaults
+
+  fin_analytics_pvs:
+    container_name: fin_analytics_pvs
+    image: fin_analytics_pvs
+    <<: *service_defaults
+
+  # linux test environment
+  # myalpine:
+  #   image: alpine
+  #   container_name: test_linux
+  #   command: ["/bin/sh", "-ec", "sleep infinity"]
+  #   network_mode: host

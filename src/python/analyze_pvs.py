@@ -23,7 +23,7 @@ from mylib.investment_db import get_quote_eur_list
 from mylib.investment_db import get_quote_eur_timeserie
 from mylib.investment_db import put_dataframe_to_table
 
-LOG_FILE = './analytics.log'  
+LOG_FILE = './fin_analytics.log'  
 
 writeLog(LOG_FILE,'validate performance, vola & sr started', id = 'FPV')    # log-start
 
