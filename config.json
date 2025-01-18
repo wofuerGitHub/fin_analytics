@@ -12,9 +12,14 @@
     },
     "method": {
       "correlation": {
-        "delay": 5.0
+        "table_source": "eur_ts_quote",
+        "columns_source": ["date", "symbol", "close"],
+        "table_target": "validation_correlation_2",
+        "columns_target": ["symbol_ij","symbol_i", "perf", "vola", "sr", "symbol_j", "corr_ij"],
+        "pk_target": ["symbols_ij"],
+        "delay": 36000.0
       }
     },
-    "debug": true
+    "debug": false
   }
 }

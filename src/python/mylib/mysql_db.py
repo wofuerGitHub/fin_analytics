@@ -5,10 +5,12 @@
 """
 File: mysql_db.py
 Author: Wolfgang Fuerst
-Date: 2024-10-06
+Date: 2025-01-11
 Description: Interaction with MYSQL-db based on sqlalchemy 
 Issues:
     ...
+Updates:
+    2025-01-11: added 
 Runtime: ...
 """
 
@@ -140,6 +142,43 @@ def get_mysql_data(connection, table:str, **kwargs):
             stmt = stmt.order_by(getattr(table.c, order_by).asc())
     return pd.read_sql_query(stmt, connection)
 
+def get_mysql_data(connection, table:str, **kwargs):
+    """
+    Read a MySQL table into a pandas DataFrame.
+
+    Args:
+        table (sqlalchemy.sql.schema.Table): table to be read into a DataFrame.
+        columns (array): columns to be read
+        filter_date (str_time): filters for everything newer than a given datetime
+        filter_updated (str_time): filters for everything newer than given datetime
+        order_by (str): column based on to be orderd
+        order_desc (bool): True on descending order
+        limit (int): rows to read
+
+    Returns:
+        dataframe: DataFrame containing the data from the table.
+
+    Updates:
+        2025-01-11 Integration of filter_date for analytics
+    """
+    columns = kwargs.get('columns', table.columns.keys())
+    filter_date = kwargs.get('filter_date', None)
+    filter_updated = kwargs.get('filter_updated', None)
+    order_by = kwargs.get('order_by', None)
+    order_desc = kwargs.get('order_desc', False)
+    limit = kwargs.get('limit', None)
+    stmt = select(*[getattr(table.c, attr) for attr in columns]).limit(limit)
+    if filter_date is not None:
+        stmt = stmt.filter(getattr(table.c, 'date') >= filter_date)
+    if filter_updated is not None:
+        stmt = stmt.filter(getattr(table.c, 'updated') >= filter_updated)
+    if order_by is not None:
+        if order_desc is True:
+            stmt = stmt.order_by(getattr(table.c, order_by).desc())
+        else:
+            stmt = stmt.order_by(getattr(table.c, order_by).asc())
+    return pd.read_sql_query(stmt, connection)
+
 def get_mysql_symbol_list(connection, table:str, **kwargs):
     """
     """
@@ -201,3 +240,38 @@ def put_dict_to_mysql(connection, table: str, data_dict: dict, unique_keys: list
                     raise Exception("Writing to database failed and was rolled back")
         else:
             raise Exception("No data to write")
+
+def put_dataframe_to_mysql(connection, table: str, data_frame: dict, unique_keys: list, **kwargs):
+    """
+    Write a dataframe to a MySQL table.
+
+    Args:
+        connection (sqlalchemy.engine.base.Connection): Connection to MySQL database.
+        table (str): Name of the table to which the data will be written.
+        data_frame (dataframe): DataFrame of data to be written to the table.
+        unique_keys (list): List of column names that will be used as unique keys for the table.
+    
+    Keyword Args:
+        update_timestamp (bool): True if updated is filled with actual time
+        commitment_rate (int): number for items to transmit per block
+
+    Raise:
+        Exception: If writing to database fails.
+
+    Returns:
+        None
+
+    Updates:
+        2025-01-11: Initial version
+    """
+    data_frame = data_frame.astype(str)                 # convert all to str
+    data_dict = data_frame.to_dict(orient='records')    # convert data_frame to data_dict
+
+    data_to_insert = []                                 # generate new dict without invalid 'nan' or 'None'
+    for i, val in enumerate(data_dict):
+        keys = [key for key, value in val.items() if value == 'nan' or value == 'None']
+        for key in keys:
+            val.pop(key, None)
+        data_to_insert.append(val)
+
+    put_dict_to_mysql(connection, table, data_to_insert, unique_keys, **kwargs)

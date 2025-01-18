@@ -1,8 +1,11 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 
-# financialFunctions.py
-# set of financial functions
-# 12.04.2022
+"""
+File: financialFunctions.py
+Author: Wolfgang Fuerst
+Date: 2025-01-15
+Description: Set Of Financial Functions
+"""
 
 import pandas as pd
 import numpy as np
@@ -64,6 +67,9 @@ def performanceAndVolaAndSR(timeSerie, years = 1):
 
     years:int
         number of years to normalize, default = 1
+
+    Update:
+        2025-01-15: simplified calculation of x-year
     """
     if timeSerie.index[0] <= timeSerie.index[-1]:
         ascendingOrder = True
@@ -72,15 +78,11 @@ def performanceAndVolaAndSR(timeSerie, years = 1):
     
     timeSerie.sort_index(ascending = True, inplace = True)                              # sort index ascending
     max_date = max(timeSerie.index)                                                     # max. date within index
-    min_date = max(timeSerie.index)
-    min_date += pd.DateOffset(days = 1)
-    if max_date.isoweekday() == 5:                                                      # case 'friday', max_date = 'monday'
-        min_date += pd.DateOffset(days = 3)
-    if max_date.isoweekday() == 6:                                                      # case 'saturday', max_date = 'monday'
+    min_date = max_date + pd.DateOffset(days = 1) - pd.DateOffset(years = years)        # min. date based on years
+    if min_date.isoweekday() == 6:                                                      # case 'saturday' -> 'monday'
         min_date += pd.DateOffset(days = 2)
-    if max_date.isoweekday() == 7:                                                      # case 'sunday', max_date = 'monday'
-        min_date += pd.DateOffset(days = 1)                
-    min_date -= pd.DateOffset(years = years)                                            # min. date calculated on param
+    if min_date.isoweekday() == 7:                                                      # case 'sunday' -> 'monday'
+        min_date += pd.DateOffset(days = 1)
     if min_date >= min(timeSerie.index):                                                # if ts is sufficient
         delta = np.log(timeSerie.loc[min_date:max_date].pct_change()+1)                 # calculate based on log to dampen outliner
         # performance = (np.power(np.power(1+np.mean(delta),len(delta)),1/years)-1)*100   # performance (annualized)

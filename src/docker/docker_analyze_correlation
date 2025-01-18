@@ -17,7 +17,7 @@ RUN touch config.json
 RUN touch fin_analytics.log
 
 # copy executable into the container
-COPY src/python/analyze_correlation.py .
+COPY src/python/correlation.py .
 
 # command to run on container start
-CMD [ "python", "./analyze_correlation.py" ]
+CMD [ "python", "./correlation.py" ]
