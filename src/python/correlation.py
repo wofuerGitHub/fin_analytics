@@ -13,7 +13,8 @@ Structure:
     Wait according config
 Issues:
     config2 to be cleaned up
-Runtime: ...
+Runtime:
+    30min for 500 items
 """
 from datetime import datetime
 
@@ -27,12 +28,15 @@ from mylib import mysql_db  # database connection
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
 from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate performance, vola, sr
 
+METHOD = "correlation"
+LOG_TEXT = ' analyzing correlation'
+
 # 1. load config file
 CONFIG = config.load_config('config.json')["analytics"]
 
 # log entry
-log_id = 'COR'
-log_text = ' analyzing correlation'
+log_id = CONFIG[METHOD]['log_id']
+log_text = LOG_TEXT
 writeLog(CONFIG['file']['log'], 'Start'+log_text+'', id = log_id)
 
 # setup the connection to the source database
@@ -40,12 +44,12 @@ mysql_db.set_configuration(**CONFIG["database"])
 sql_engine = mysql_db.create_sql_engine(mysql_db.get_configuration())
 
 # load data
-first_date = datetime.now() + pd.DateOffset(days=-400) # get the data from 400 days in the past till now
+first_date = datetime.now() + pd.DateOffset(days=-400) # get the data from 400 days in the past till now / quick and dirty to avoid too much data
 
 try:
     connection_to_source = sql_engine.connect()
-    source = mysql_db.get_metatable(sql_engine, CONFIG["method"]["correlation"]["table_source"])
-    data = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG["method"]["correlation"]["columns_source"], filter_date = first_date.strftime("%Y-%m-%d"), order_desc = False)
+    source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source"])
+    data = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG[METHOD]["columns_source"], filter_date = first_date.strftime("%Y-%m-%d"), order_desc = False)
     connection_to_source.close()
 except:
     writeLog(CONFIG['file']['log'], 'Error reading from source', id = log_id)
@@ -61,7 +65,7 @@ data_interpolated = pd.DataFrame()                  # empty dataframe
 datagroup = data.groupby('symbol')                  # grouping by symbol
 for name, group in datagroup:
     group.set_index(['date'], inplace = True)       # iterate through groups and interpolate
-    data_interpolated = pd.concat([data_interpolated, standardizeTimeSerie(group, 'today-1year', 'today')])
+    data_interpolated = pd.concat([data_interpolated, standardizeTimeSerie(group, 'endDate-1year', 'lastBDay')])
 data_interpolated.index.names = ['date']            # rename index colum
 
 datagroup = data_interpolated.groupby('symbol')     # grouping by symbol
@@ -107,8 +111,8 @@ result["symbol_ij"] = result["symbol_i"]+"_"+result["symbol_j"] # create pk
 # store data
 try:
     connection_to_target = sql_engine.connect()
-    target = mysql_db.get_metatable(sql_engine, CONFIG["method"]["correlation"]["table_target"])
-    mysql_db.put_dataframe_to_mysql(connection_to_target, target, result, CONFIG["method"]["correlation"]["pk_target"], update_timestamp = True)
+    target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target"])
+    mysql_db.put_dataframe_to_mysql(connection_to_target, target, result, CONFIG[METHOD]["pk_target"], update_timestamp = True)
     connection_to_target.close()
 except:
     writeLog(CONFIG['file']['log'], 'Error writing to target - no update', id = log_id)
@@ -116,5 +120,5 @@ except:
 # log entry
 writeLog(CONFIG['file']['log'], 'End'+log_text+'', id = log_id)
 writeLog(CONFIG["file"]["log"], 'Wait'+log_text+' for '\
-         +str(CONFIG["method"]["correlation"]["delay"])+'s', id = log_id)
-time.sleep(CONFIG["method"]["correlation"]["delay"])
+         +str(CONFIG[METHOD]["delay"])+'s', id = log_id)
+time.sleep(CONFIG[METHOD]["delay"])

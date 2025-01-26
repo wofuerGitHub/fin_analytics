@@ -32,6 +32,14 @@ def standardizeTimeSerie(timeSerie, startDate = 'first', endDate = 'last'):
     
     if endDate == 'last':               # if endDate = 'last', use idx[-1]-date 
         endDate = timeSerie.index[-1]
+    elif endDate == 'lastBDay':
+        now = datetime.now()
+        if now.isoweekday() == 6:                                                      # case 'saturday' -> 'friday'
+            endDate = now - pd.DateOffset(days = 1)
+        elif now.isoweekday() == 7:                                                      # case 'sunday' -> 'friday'
+            endDate = now - pd.DateOffset(days = 2)
+        else:
+            endDate = now
     elif endDate == 'today':              # if endDate = 'today', use todays-date
         now = datetime.now()
         endDate = date(year = now.year, month = now.month, day = now.day)

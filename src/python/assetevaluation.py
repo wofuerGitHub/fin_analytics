@@ -1,0 +1,320 @@
+#!/usr/bin/python3
+
+"""
+File: asssetevaluation.py
+Author: Wolfgang Fuerst
+Date: 2025-01-25
+Description: Evaluate the true value of an asset
+Structure:
+    ...
+Issues:
+    ...
+Runtime: ...
+
+Args:
+    None
+"""
+# from datetime import datetime
+
+import datetime as dt
+import json
+import time
+import pandas as pd                                             # pandas
+import numpy as np
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+
+import mylib.config2 as config
+
+from mylib import writeLog  # logging
+
+from mylib import mysql_db  # database connection
+
+METHOD = "assetevaluation"
+LOG_TEXT = ' asset evaluation'
+
+# 1. load config file
+CONFIG = config.load_config('config.json')["analytics"]
+
+# log entry
+log_id = CONFIG[METHOD]['log_id']
+
+writeLog(CONFIG['file']['log'], 'Start'+LOG_TEXT+'', id = log_id)
+
+# 2. functions for calculation
+
+### FUNCTIONS START ###
+
+def trend(known_data_y, known_data_x, new_data_x):
+    """TREND - linear approximation"""
+    polynomial_coefficients = np.polyfit(known_data_x, known_data_y, 1)
+    f = np.poly1d(polynomial_coefficients)
+    return f(new_data_x)
+
+def growth(known_data_y, known_data_x, new_data_x):
+    """GROWTH - exponential approximation"""
+    if min(known_data_y[:]) > 0:
+        def func(x, a, b):
+            return a*np.power(b,x/365)              # a*np.power(b,x/365)
+        a = max(0.01, np.mean(known_data_y))        # min eps 0.1
+        b = 1                                       # with a growth of 0% [-50% ... +50%] annual
+        # print(a, b, c)
+        popt, pcov = curve_fit(func, known_data_x, known_data_y, p0 = (a, b), \
+                               bounds = ([-np.inf, .5], [np.inf, 1.5]), maxfev= 10000)
+        # print(popt)
+        # print(pcov)
+        # print(np.sqrt(np.diag(pcov)))
+        return func(new_data_x, *popt)
+    else:
+        return np.nan
+
+def last_percent(known_data_y, known_data_x, new_data_x, percent):
+    """LAST-X% - exponential growth on the last 3 eps values"""
+    idx = max(known_data_y.index)
+    def func(x, a, b, c):
+        return a*np.power(b,(x-c)/365)
+    a = np.mean(known_data_y[-3:])
+    b = 1 + percent/100
+    c = np.mean(known_data_x[-3:])
+    return func(new_data_x, a, b, c)
+
+def average_item(known_data_y, known_data_x, new_data_x, number_of_items):
+    """AVERAGE - x points average forward evaluation"""
+    return np.mean(known_data_y[-number_of_items:])
+
+def rsq(known_data_x, known_data_y):
+    """RSQ - root square"""
+    corr_matrix = np.corrcoef(known_data_x, known_data_y)
+    corr = corr_matrix[0,1]
+    return corr**2
+
+### FUNCTIONS END ###
+
+# setup the connection to the source database
+mysql_db.set_configuration(**CONFIG["database"])
+sql_engine = mysql_db.create_sql_engine(mysql_db.get_configuration())
+
+# 3. getting complete reference data
+
+try:
+    connection_to_source = sql_engine.connect()
+    source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_reference"])
+    result_table = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG[METHOD]["columns_source_reference"], order_by = "symbol", order_desc = False)
+    connection_to_source.close()
+except:
+    writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
+
+### DEBUG print(data)
+for row in result_table.itertuples():
+
+    companyName = row.companyName
+    symbol = row.symbol
+    symbol_fundamental = row.symbol_fundamental
+    print(companyName, symbol)
+    debug_message = ''+companyName+' : '+symbol+'\n'
+
+    # getting historical edcbps values
+    try:
+        connection_to_source = sql_engine.connect()
+        source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_edcbps"])
+        ts = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG[METHOD]["columns_source_edcbps"], filter_symbol = symbol_fundamental, order_by = "date", order_desc = True, limit = 10)
+        connection_to_source.close()
+    except:
+        debug_message = debug_message + 'Could not query edcbps_eur\n'
+        print(debug_message)
+        continue
+
+    # getting actual eps value
+    try:
+        connection_to_source = sql_engine.connect()
+        source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_ts"])
+        query_result = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG[METHOD]["columns_source_ts"], filter_symbol = symbol, order_by = "date", order_desc = True, limit = 1)
+        connection_to_source.close()
+        ts_last = query_result[['date','eps']]
+        close = query_result.at[0,'close']   
+    except:
+        debug_message = debug_message + 'Could not query ts_eur\n'
+        print(debug_message)        
+        continue
+
+    if ts_last['eps'].any() == 0:   # catch items that have no actual eps like Gold or VUSA.L and return 0.0
+        ts_last['eps'] = np.nan
+        debug_message = debug_message + 'Catch eps = 0.0\n'
+
+    ts = pd.concat([ts_last, ts])
+    ts['date'] = pd.to_datetime(ts['date'])
+
+    # adding the future
+    ts_future = pd.DataFrame()
+    ts_future['date'] = pd.date_range(start = \
+        dt.date(max(ts_last['date']).year+1, max(ts_last['date']).month, max(ts_last['date']).day), \
+            periods = 20, freq = "365d") # approx. 1 year intervals
+
+    ts_future = pd.concat([ts_future, ts])
+    ts_future['eps*'] = ts_future['eps']
+    ts_future['date_ordinal'] = pd.to_datetime(ts_future['date']).map(dt.datetime.toordinal)
+    ts_future.sort_values('date_ordinal', inplace = True)
+    ts_future.reset_index(drop = True, inplace = True)
+    # ts_future['date'] = ts_future['date'].dt.strftime('%Y-%m-%d')
+
+    if len(ts_future['eps'].dropna()) < 11:
+        years = 11 - len(ts_future['eps'].dropna())
+        ts_past = pd.DataFrame()
+        ts_past['date'] = pd.date_range(start = \
+            dt.date(min(ts_future['date']).year-years, min(ts_future['date']).month, min(ts_future['date']).day), \
+                periods = years, freq = "365d") # approx. 1 year intervals
+        ts_past['eps'] = ts_future.loc[0,'eps']
+        ts_past['eps*'] = ts_future.loc[0,'eps*']
+        ts_past['date_ordinal'] = pd.to_datetime(ts_past['date']).map(dt.datetime.toordinal)
+        ts_future = pd.concat([ts_future, ts_past])
+        ts_future.sort_values('date_ordinal', inplace = True)
+        ts_future.reset_index(drop = True, inplace = True)
+        debug_message = debug_message + 'Catch insuficient amount (<11) of fundamental values\n'
+
+    # eps* eleminating single negative data
+    if len(ts_future.loc[ts_future['eps'] <= 0]) == 1:              # one negative value
+        idx = ts_future.loc[ts_future['eps'] <= 0].index
+        if (idx >= 1) & (idx <= max(ts_future['eps'].dropna().index)-1):   # index fist + 1 ... last - 1
+            eps_est = (ts_future.iloc[idx-1]['eps'].values[0] +\
+                    ts_future.iloc[idx]['eps'].values[0] + \
+                    ts_future.iloc[idx+1]['eps'].values[0])/3
+            ts_future.loc[idx-1, 'eps*'] = eps_est
+            ts_future.loc[idx, 'eps*'] = eps_est
+            ts_future.loc[idx+1, 'eps*'] = eps_est
+        if idx == max(ts_future['eps'].dropna().index):
+            eps_est = (ts_future.iloc[idx-1]['eps'].values[0] +\
+                    ts_future.iloc[idx]['eps'].values[0])/2
+            ts_future.loc[idx-1, 'eps*'] = eps_est
+            ts_future.loc[idx, 'eps*'] = eps_est         
+        if idx == 0:
+            eps_est = (ts_future.iloc[idx+1]['eps'].values[0] +\
+                    ts_future.iloc[idx]['eps'].values[0])/2
+            ts_future.loc[idx+1, 'eps*'] = eps_est
+            ts_future.loc[idx, 'eps*'] = eps_est
+        debug_message = debug_message + 'Corrected 1 eps value <= 0 \n'
+
+    ts_future['date_ordinal'] = ts_future['date_ordinal'] - min(ts_future['date_ordinal'])
+    ts = ts_future.iloc[ts_future['eps'].dropna().index]        # ts are the ones that are with eps values
+
+    # TREND - calculating the trend (allways successfull)
+    ts_future['TREND'] = np.round(trend(ts['eps'], ts['date_ordinal'], ts_future['date_ordinal']),3)
+
+    # 7Y-AVG - calculating the average of the last 7 years (always successfull)
+    ts_future['7Y-AVG'] = np.round(average_item(ts['eps'], ts['date_ordinal'], ts_future['date_ordinal'], 7), 3)
+
+    # GROWTH - calculating growth (might fail based on negative eps values)
+    ts_future['GROWTH'] = np.round(growth(ts['eps'], ts['date_ordinal'], ts_future['date_ordinal']),3)
+
+    # GROWTH* - calculating growth* with corrected eps values (might fail based on negative eps values)
+    ts_future['GROWTH*'] = np.round(growth(ts['eps*'], ts['date_ordinal'], ts_future['date_ordinal']),3)
+
+    # LAST-x% - putting in relation the last change to the average go on based on this [-33%,8%]
+    percent = min(8, (ts_future.iloc[max(ts_future['eps'].dropna().index)+1]['TREND']-\
+                ts_future.iloc[max(ts_future['eps'].dropna().index)]['TREND'])\
+                /np.abs(ts_future.iloc[max(ts_future['eps'].dropna().index)]['7Y-AVG'])*100)
+    percent = max (percent, -33)
+    ts_future['LAST-X%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], ts_future['date_ordinal'], percent), 3)
+    
+    # LAST-8% - calculating growth of 8% with the last 3 values (always successful)    
+    ts_future['LAST-8%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], ts_future['date_ordinal'], 8), 3)
+
+    result = {}
+    idx = max(ts_future['eps'].dropna().index)
+    investment_types = ['TREND', 'GROWTH', 'GROWTH*', 'LAST-X%', 'LAST-8%', '7Y-AVG']
+    for type in investment_types:
+        result[type] = {}
+        if type == 'LAST-X%':
+            result[type]['Value'] = percent
+        else:
+            result[type]['Value'] = np.round((ts_future.iloc[idx+1][type]-ts_future.iloc[idx][type])/np.abs(ts_future.iloc[idx][type])*100,1)
+        result[type]['RSQ'] = np.round(rsq(ts_future[:idx+1]['eps'], ts_future[:idx+1][type]),3)
+        result[type]['7Y'] = np.round(ts_future.iloc[idx+1:idx+7][type].sum(),3)
+        result[type]['15Y'] = np.round(ts_future.iloc[idx+1:idx+15][type].sum(),3)
+        result[type]['20Y'] = np.round(ts_future.iloc[idx+1:idx+20][type].sum(),3)
+
+    ts_future.set_index('date_ordinal', inplace = True)
+    
+    result_str = json.dumps(result, indent=4)
+    # print(result_str)
+
+    # decision tree
+    investment_type = ''
+    investment_type_2 = ''
+    if result['GROWTH']['Value'] <= 8:      # the best result based on eps that have all been positive
+        investment_type = 'GROWTH'
+    elif result['GROWTH']['Value'] > 8:     # if growth was >8%, this limits the result to 8% maximum
+        investment_type = 'LAST-8%'
+    elif result['GROWTH*']['Value'] <= 8:   # the 2nd best result based on eps that have been corrected
+        investment_type = 'GROWTH*'
+    elif result['GROWTH*']['Value'] > 8:    # if growth* was >8%, this limits the result to 8% maximum
+        investment_type = 'LAST-8%'
+        investment_type_2 = '*'             # workaround to add '*' to 'LAST-8%' based on 'GROWTH*'
+    elif np.isnan(result['LAST-X%']['Value']) == False:
+        investment_type = 'LAST-X%'
+    else:                                   # absolute exception, normally gowing down
+        investment_type = 'TREND'
+
+    if result['TREND']['20Y'] <= 0:
+        result['Risk'] = 1
+        hint = ' - RISK'
+    else:
+        result['Risk'] = 0        
+        hint = ''
+
+    # print(investment_type)
+
+    # plot
+    if CONFIG[METHOD]["plot_chart"]:
+        plt.plot(ts_future['date'], ts_future['eps'], 'k+')
+        plt.plot(ts_future['date'], ts_future['GROWTH'], 'g-')
+        plt.plot(ts_future['date'], ts_future['GROWTH*'], '*g--')
+        plt.plot(ts_future['date'], ts_future['LAST-X%'], 'xr--')
+        plt.plot(ts_future['date'], ts_future['LAST-8%'], 'r-')
+        plt.plot(ts_future['date'], ts_future['TREND'], 'b-')
+        plt.plot(ts_future['date'], ts_future['7Y-AVG'], 'b--')
+        plt.xlabel('Time')
+        plt.ylabel('Earning Per Share')
+        # plt.yscale('symlog')
+        plt.ylim([min(ts['eps'])-5, max(ts['eps'])*3])
+        plt.title(''+companyName+', '+symbol+', Projection: '+investment_type+' / '+str(result[investment_type]['RSQ'])+hint+' '+dt.datetime.now().strftime('%Y-%m-%d'))
+
+        plt.legend(['RAW', 'GROWTH', 'GROWTH*', 'LAST-X%', 'LAST-8%', 'TREND', '7Y-AVG'])
+        plt.grid(True)
+        plt.savefig('./plot/'+"".join([x if x.isalnum() else "_" for x in companyName])+' '+symbol+' '+dt.datetime.now().strftime('%Y-%m-%d')+'.png')
+        # plt.show()
+        plt.close()
+
+    ts_future['symbol'] = symbol
+    ts_future['created'] = dt.datetime.now().strftime('%Y-%m-%d')
+    ts_future = ts_future[['symbol', 'date', 'eps', 'eps*', 'GROWTH', 'GROWTH*', 'LAST-8%', 'LAST-X%', 'TREND', '7Y-AVG', 'created']]
+    ts_future = ts_future.rename(columns={'eps*': 'epsStar', 'GROWTH': 'growth', 'GROWTH*': 'growthStar', 'LAST-8%': 'lastEight', 'LAST-X%': 'lastX', 'TREND':'trend', '7Y-AVG':'sevenYearAvg'})
+
+    
+    ### write to database - line 273 ... 278
+    try:
+        connection_to_target = sql_engine.connect()
+        target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target_eps_raw"])
+        mysql_db.put_dataframe_to_mysql(connection_to_target, target, ts_future, CONFIG[METHOD]["pk_target_eps_raw"], update_timestamp = True)
+        connection_to_target.close()
+    except:
+        debug_message = debug_message + 'Could not write raw-data\n'
+
+    write_investment_type = investment_type + investment_type_2 # workaround to add '*' to 'LAST-8%' based on 'GROWTH*'
+    dataset = {'symbol': [symbol], 'date': [dt.datetime.now().strftime('%Y-%m-%d')], 'type': [write_investment_type], 'risk': [result['Risk']], 'rsq': [result[investment_type]['RSQ']], 'close': close, 'sevenYears': [result[investment_type]['7Y']], 'fifteenYears': [result[investment_type]['15Y']], 'twentyYears': [result[investment_type]['20Y']], 'interest': [result[investment_type]['Value']], 'created': dt.datetime.now().strftime('%Y-%m-%d')}
+    condensedView = pd.DataFrame(data=dataset)
+    ### write to database - line 281 ... 287
+    try:
+        connection_to_target = sql_engine.connect()
+        target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target_eps"])
+        mysql_db.put_dataframe_to_mysql(connection_to_target, target, condensedView, CONFIG[METHOD]["pk_target_eps"], update_timestamp = True)
+        connection_to_target.close()
+    except:
+        debug_message = debug_message + 'Could not write analyzing-result\n'
+
+    print(debug_message)
+
+# 4. log entry and wait
+writeLog(CONFIG['file']['log'], 'End'+LOG_TEXT+'', id = log_id)
+writeLog(CONFIG["file"]["log"], 'Wait'+LOG_TEXT+' for '\
+         +str(CONFIG[METHOD]["delay"])+'s', id = log_id)
+time.sleep(CONFIG[METHOD]["delay"])

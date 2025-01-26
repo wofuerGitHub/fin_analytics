@@ -112,7 +112,7 @@ def get_metatable(engine, table: str):
     meta.reflect(engine)
     return meta.tables[table]
 
-def get_mysql_data(connection, table:str, **kwargs):
+def get_mysql_data_old(connection, table:str, **kwargs):
     """
     Read a MySQL table into a pandas DataFrame.
 
@@ -141,7 +141,7 @@ def get_mysql_data(connection, table:str, **kwargs):
         else:
             stmt = stmt.order_by(getattr(table.c, order_by).asc())
     return pd.read_sql_query(stmt, connection)
-
+    
 def get_mysql_data(connection, table:str, **kwargs):
     """
     Read a MySQL table into a pandas DataFrame.
@@ -149,6 +149,7 @@ def get_mysql_data(connection, table:str, **kwargs):
     Args:
         table (sqlalchemy.sql.schema.Table): table to be read into a DataFrame.
         columns (array): columns to be read
+        filter_symbol (str): filters for a certain string
         filter_date (str_time): filters for everything newer than a given datetime
         filter_updated (str_time): filters for everything newer than given datetime
         order_by (str): column based on to be orderd
@@ -160,14 +161,18 @@ def get_mysql_data(connection, table:str, **kwargs):
 
     Updates:
         2025-01-11 Integration of filter_date for analytics
+        2025-01-22 Integration of filter_symbol
     """
     columns = kwargs.get('columns', table.columns.keys())
+    filter_symbol = kwargs.get('filter_symbol', None)
     filter_date = kwargs.get('filter_date', None)
     filter_updated = kwargs.get('filter_updated', None)
     order_by = kwargs.get('order_by', None)
     order_desc = kwargs.get('order_desc', False)
     limit = kwargs.get('limit', None)
     stmt = select(*[getattr(table.c, attr) for attr in columns]).limit(limit)
+    if filter_symbol is not None:
+        stmt = stmt.filter(getattr(table.c, 'symbol') == filter_symbol)    
     if filter_date is not None:
         stmt = stmt.filter(getattr(table.c, 'date') >= filter_date)
     if filter_updated is not None:
@@ -177,6 +182,30 @@ def get_mysql_data(connection, table:str, **kwargs):
             stmt = stmt.order_by(getattr(table.c, order_by).desc())
         else:
             stmt = stmt.order_by(getattr(table.c, order_by).asc())
+    return pd.read_sql_query(stmt, connection)
+
+def get_mysql_min_max(connection, table:str):
+    """
+        symbol    max_date    min_date
+    0    1COV.DE  2025-01-17  2015-10-06
+    1    2222.SR  2025-01-19  2019-12-11
+    2    6088.HK  2025-01-17  2017-07-13
+    3     6594.T  2025-01-17  1998-09-16
+    4     7309.T  2025-01-17  2001-01-04
+    ..       ...         ...         ...
+    488      YUM  2025-01-17  1997-09-12
+    489      ZBH  2025-01-17  2001-07-25
+    490   ZEG.DE  2025-01-17  2001-12-28
+    491     ZION  2025-01-17  1972-04-03
+    492      ZTS  2025-01-17  2013-02-01
+
+    [493 rows x 3 columns]
+    """
+    stmt = select(
+        table.c.symbol,
+        func.max(table.c.date).label("max_date"),
+        func.min(table.c.date).label("min_date")
+    ).group_by(table.c.symbol)
     return pd.read_sql_query(stmt, connection)
 
 def get_mysql_symbol_list(connection, table:str, **kwargs):

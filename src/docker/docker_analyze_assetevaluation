@@ -16,8 +16,11 @@ RUN pip install -r requirements.txt
 RUN touch config.json
 RUN touch fin_analytics.log
 
+# create folder for plot
+RUN mkdir ./plot
+
 # copy executable into the container
-COPY src/python/pvs.py .
+COPY src/python/assetevaluation.py .
 
 # command to run on container start
-CMD [ "python", "./pvs.py" ]
+CMD [ "python", "./assetevaluation.py" ]

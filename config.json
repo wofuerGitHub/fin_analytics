@@ -10,16 +10,44 @@
       "password": "fin",
       "ssl": false
     },
-    "method": {
-      "correlation": {
-        "table_source": "eur_ts_quote",
-        "columns_source": ["date", "symbol", "close"],
-        "table_target": "validation_correlation_2",
-        "columns_target": ["symbol_ij","symbol_i", "perf", "vola", "sr", "symbol_j", "corr_ij"],
-        "pk_target": ["symbols_ij"],
-        "delay": 36000.0
-      }
+    "assetevaluation": {
+      "log_id": "FAE",
+      "plot_chart": false,
+      "table_source_reference": "_reference_map",
+      "columns_source_reference": ["symbol", "symbol_fundamental", "companyName"],
+      "table_source_edcbps": "eur_fun",
+      "columns_source_edcbps": ["date", "eps"],      
+      "table_source_ts": "eur_ts_quote",
+      "columns_source_ts": ["date", "close", "eps"],
+      "table_target_eps_raw": "eps_analyzed_raw_2",
+      "columns_target_eps_raw": ["symbol", "date", "eps", "epsStar", "growth", "growthStar", "lastEight", "lastX", "trend", "sevenYearAvg"],
+      "pk_target_eps_raw": ["symbol", "date", "created"],
+      "table_target_eps": "eps_analyzed_2",
+      "columns_target_eps": ["symbol", "date", "type", "risk", "rsq", "close", "sevenYears", "fifteenYears", "twentyYears", "interest"],
+      "pk_target_eps": ["symbol", "date", "created"],
+      "delay": 1.0
     },
+    "check": {
+      "log_id": ""
+    },
+    "correlation": {
+      "log_id":"FCO",
+      "table_source": "eur_ts_quote",
+      "columns_source": ["date", "symbol", "close"],
+      "table_target": "validation_correlation_2",
+      "columns_target": ["symbol_ij", "symbol_i", "perf", "vola", "sr", "symbol_j", "corr_ij"],
+      "pk_target": ["symbols_ij"],
+      "delay": 1.0
+    },
+    "performancevolasr": {
+      "log_id":"FPV",
+      "table_source": "eur_ts_quote",
+      "columns_source": ["date", "close"],
+      "table_target": "validation_pvs_2",
+      "columns_target": ["symbol", "max_date", "min_date", "period", "perf", "vola", "sr"],
+      "pk_target": ["symbol", "period"],
+      "delay": 1.0        
+      },
     "debug": false
   }
 }
