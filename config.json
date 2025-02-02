@@ -25,7 +25,7 @@
       "table_target_eps": "eps_analyzed_2",
       "columns_target_eps": ["symbol", "date", "type", "risk", "rsq", "close", "sevenYears", "fifteenYears", "twentyYears", "interest"],
       "pk_target_eps": ["symbol", "date", "created"],
-      "delay": 1.0
+      "delay": 36000.0
     },
     "check": {
       "log_id": ""
@@ -37,7 +37,7 @@
       "table_target": "validation_correlation_2",
       "columns_target": ["symbol_ij", "symbol_i", "perf", "vola", "sr", "symbol_j", "corr_ij"],
       "pk_target": ["symbols_ij"],
-      "delay": 1.0
+      "delay": 36000.0
     },
     "performancevolasr": {
       "log_id":"FPV",
@@ -46,7 +46,7 @@
       "table_target": "validation_pvs_2",
       "columns_target": ["symbol", "max_date", "min_date", "period", "perf", "vola", "sr"],
       "pk_target": ["symbol", "period"],
-      "delay": 1.0        
+      "delay": 36000.0        
       },
     "debug": false
   }

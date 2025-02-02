@@ -1,7 +1,19 @@
-"""calculate validation board"""
-
 #!/usr/bin/python3
 
+"""
+File: analyze_board.py
+Author: Wolfgang Fuerst
+Date: ...
+Description: Calculate Validation Board - in relation over 7 years
+Structure:
+    ...
+Issues:
+   ...
+Runtime:
+    ...
+Args:
+    None
+"""
 import datetime as dt
 import numpy as np
 import pandas as pd
