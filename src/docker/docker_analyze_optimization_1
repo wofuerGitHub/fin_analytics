@@ -1,0 +1,23 @@
+# set base image (host OS)
+FROM python:3.11-slim
+
+# set the working directory in the container
+WORKDIR /code
+
+# copy library files in the container
+RUN mkdir ./mylib
+COPY src/python/mylib/* ./mylib/
+
+# copy the dependencies file to the container & install
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# build controll and log files in the container
+RUN touch config.json
+RUN touch fin_analytics.log
+
+# copy executable into the container
+COPY src/python/optimization.py .
+
+# command to run on container start
+CMD [ "python", "./optimization.py" ]

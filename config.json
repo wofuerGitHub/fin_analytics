@@ -39,6 +39,22 @@
       "pk_target": ["symbols_ij"],
       "delay": 36000.0
     },
+    "optimization_1": {
+      "log_id":"OP1",
+      "table_source_portfolio": "portfolio",
+      "columns_source_portfolio": ["symbol", "isin", "companyName", "all"],
+      "table_source_reference": "_reference_map",
+      "columns_source_reference": ["symbol", "isin", "companyName"],
+      "table_source_ts": "eur_ts_quote",
+      "columns_source_ts": ["date", "close"],
+      "table_target": "validation_optimization_2",
+      "pk_target": ["isin"],
+      "delay": 1.0
+    },
+    "optimization_2": {
+      "log_id":"OP2",
+      "delay": 1.0
+    },
     "performancevolasr": {
       "log_id":"FPV",
       "table_source": "eur_ts_quote",
