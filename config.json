@@ -49,10 +49,22 @@
       "columns_source_ts": ["date", "close"],
       "table_target": "validation_optimization_2",
       "pk_target": ["isin"],
-      "delay": 1.0
+      "delay": 3600.0
     },
     "optimization_2": {
       "log_id":"OP2",
+      "table_source_reference": "_reference_map",
+      "columns_source_reference": ["symbol", "symbol_fundamental", "isin", "companyName"],
+      "table_source_portfolio": "my_portfolio",
+      "columns_source_portfolio": ["symbol", "all"],
+      "table_source_ts": "eur_ts_quote",
+      "columns_source_ts": ["date", "close", "per"],
+      "table_source_edcbps": "eur_fun",
+      "columns_source_edcbps": ["date", "bps"],
+      "table_target_portfolio": "my_portfolio",
+      "pk_target_portfolio": ["symbol"],
+      "table_target_portfolio_opt": "my_portfolio_opt",
+      "pk_target_portfolio_opt": ["name"],
       "delay": 1.0
     },
     "performancevolasr": {

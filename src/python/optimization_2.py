@@ -1,27 +1,42 @@
-"""portfolio optimization"""
-
-# --- concept 
-# 1.    load portfolio
-# 2.    load timeseries & additonal parameters
-# 3.    first optimization: sharpe ratio
-# 3.1   calculate performance, vola, sharpe ratio
-# 3.2   calculate optimal portfolio based on sharpe ratio
-# 4.    de-compose optimal sharpe ratio in performance and vola
-# 5.    second optimization: around optimal sharpe ratio incude other parameters
-# 5.1   normalize parameters, like e.g. 1/opt_perf*perf + 1/opt_vola*vola + 1/target_dividend*dividend + 1/target_bookvalue*bookvalue + 1/target_eps*eps
-# 5.2   calculate optimal portfolio based on parameter set 
-
 #!/usr/bin/python3
+
+"""
+File: optimization_2.py
+Author: Wolfgang Fuerst
+Date: 2025-02-08
+Description: Optimize portfolio specific on SR, EPR, BPR
+Structure:
+    1.    load portfolio
+    2.    load timeseries & additonal parameters
+    3.    first optimization: sharpe ratio
+    3.1   calculate performance, vola, sharpe ratio
+    3.2   calculate optimal portfolio based on sharpe ratio
+    4.    de-compose optimal sharpe ratio in performance and vola
+    5.    second optimization: around optimal sharpe ratio incude other parameters
+    5.1   normalize parameters, like e.g. 1/opt_perf*perf + 1/opt_vola*vola + 1/target_dividend*dividend + 1/target_bookvalue*bookvalue + 1/target_eps*eps
+    5.2   calculate optimal portfolio based on parameter set 
+Issues:
+    ...
+Runtime: ...
+
+Args:
+    None
+"""
+from datetime import datetime
+import time
 
 import numpy as np                                              # numpy
 import pandas as pd                                             # pandas
+
+import mylib.config2 as config
+from mylib import mysql_db  # database connection
 
 from mylib.writeLog import writeLog                             # write log
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
 from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate performance, vola, sr
 
-from mylib.investment_db import get_portfolio                   # get portfolio
-from mylib.investment_db import get_quote_eur_timeserie
+# from mylib.investment_db import get_portfolio                   # get portfolio
+# from mylib.investment_db import get_quote_eur_timeserie
 from mylib.investment_db import get_last_earning_price_ratio
 from mylib.investment_db import get_last_bookvalue_price_ratio
 from mylib.investment_db import put_dataframe_to_table
@@ -34,18 +49,65 @@ import scipy.optimize as opt
 # plt.style.use('ggplot')
 # matplotlib.use( 'tkagg' )
 
-LOG_FILE = './analytics.log'                                    # load log-file
+METHOD = "optimization_2"
+LOG_TEXT = ' specific portfolio optimization'
 
-writeLog(LOG_FILE,'Portfolio optimization started', id = 'PO2') # log-start
+# 1. load config file
+CONFIG = config.load_config('config.json')["analytics"]
+
+# log entry
+log_id = CONFIG[METHOD]['log_id']
+
+writeLog(CONFIG['file']['log'], 'Start'+LOG_TEXT+'', id = log_id)
+
+# setup the connection to the source database
+mysql_db.set_configuration(**CONFIG["database"])
+sql_engine = mysql_db.create_sql_engine(mysql_db.get_configuration())
 
 # 1.    load portfolio
-
 print('load portfolio')
 
-my_portfolio = get_portfolio()                                              # load portfolio
+"""
+      symbol          isin                              companyName       all
+167  EXSA.DE  DE0002635307  iShares STOXX Europe 600 UCITS ETF (DE)   544.200
+195    GOOGL  US02079K3059                                 Alphabet   100.000
+232     INTC  US4581401001                                    Intel   313.000
+360   PHAU.L  JE00B1VS3770                 WisdomTree Physical Gold   897.662
+427   TEG.DE  DE0008303504                        TAG Immobilien AG  1042.000
+"""
+
+# portfolio = get_portfolio()
+# print(portfolio)
+
+# ---
+
+try:
+    connection_to_source = sql_engine.connect()
+    source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_portfolio"])
+    portfolio = mysql_db.get_mysql_data(connection_to_source, source, \
+                                        columns = CONFIG[METHOD]["columns_source_portfolio"])
+    connection_to_source.close()
+except:
+    writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
+
+try:
+    connection_to_source = sql_engine.connect()
+    source = mysql_db.get_metatable(sql_engine, \
+                                    CONFIG[METHOD]["table_source_reference"])
+    reference = mysql_db.get_mysql_data(connection_to_source, source, \
+                                        columns = CONFIG[METHOD]["columns_source_reference"])
+    connection_to_source.close()
+except:
+    writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
+
+# merge with the leading table is the portfolio
+my_portfolio = pd.merge(reference, portfolio[['symbol', 'all']], how = "left", on = ['symbol'])
+my_portfolio['all'] = my_portfolio['all'].fillna(0)
 my_portfolio = my_portfolio[my_portfolio['all'] != 0]                       # remove all = 0 / assets not in portfolio
 
 print(my_portfolio)                                                            # print portfolio
+
+# ---
 
 # 2.    load timeseries
 print('\nload timeseries')
@@ -55,7 +117,9 @@ perf = []                                                                   # pe
 vola = []                                                                   # vola per equity
 sr = []                                                                     # sharpe ratio per equity
 ts_portfolio = pd.DataFrame(columns=['date'])                               # portfolio timeserie
-ts_portfolio.set_index('date', inplace=True)                                # set index to date
+ts_portfolio.set_index('date', inplace=True)    # set index to date
+
+"""
 for index, row in my_portfolio.iterrows():                                     # iterate over portfolio
     print(row['isin'], row['companyName'], row['symbol'], row['all'])       # print info
     ts = get_quote_eur_timeserie(row['symbol'])                             # get timeserie
@@ -70,6 +134,34 @@ for index, row in my_portfolio.iterrows():                                     #
 
     ts_portfolio[row['symbol']] = ts_normalized.close
 my_portfolio.set_index('symbol', inplace=True)                                 # set index to symbol
+"""
+# load timeseries / last 400 days - quick and dirty
+first_date = datetime.now() + pd.DateOffset(days=-400)
+
+for index, row in my_portfolio.iterrows():
+
+    print(row['isin'], row['companyName'], row['symbol'], row['all']) # print info
+
+    try:
+        connection_to_source = sql_engine.connect()
+        source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_ts"])
+        ts = mysql_db.get_mysql_data(connection_to_source, source, \
+                                     columns = CONFIG[METHOD]["columns_source_ts"], \
+                                     filter_symbol = row['symbol'], \
+                                     filter_date = first_date.strftime("%Y-%m-%d"), \
+                                     order_desc = False)
+        connection_to_source.close()
+    except:
+        writeLog(CONFIG['file']['log'], 'Error reading timeserie from source', id = log_id)
+
+    ts.date = pd.to_datetime(ts.date)
+    ts.set_index('date', inplace=True)
+    my_portfolio.loc[index, 'per'] = ts.iloc[-1]['per']  # last per to my_portfolio
+    my_portfolio.loc[index, 'last_close'] = ts.iloc[-1]['close']  # last per to my_portfolio
+    ts.drop(columns = ['per'], inplace = True)
+    ts_normalized = standardizeTimeSerie(ts, 'endDate-1year', 'lastBDay')   # std. to one-year
+    ts_portfolio[row['symbol']] = ts_normalized['close']*row['all']
+my_portfolio.set_index('symbol', inplace=True) # perf, vola, sr per equity
 
 # print(ts_portfolio)                                                       # complete ts of the assets and tota;
 
@@ -91,25 +183,29 @@ my_portfolio['perf'] = pd.DataFrame(pvs[0])
 my_portfolio['vola'] = pd.DataFrame(pvs[1])
 my_portfolio['sr'] = pd.DataFrame(pvs[2])
 
-for index, row in my_portfolio.iterrows():                                  # iterate over portfolio and add earning price ratio
-    try:
-        epr = get_last_earning_price_ratio(index)
-        if np.isnan(epr['epr'][0]):
-            my_portfolio.loc[index,'epr'] = 0
-        else:
-            my_portfolio.loc[index,'epr'] = epr['epr'][0]
-    except:
-        my_portfolio.loc[index,'epr'] = 0
+my_portfolio['epr'] = 1/my_portfolio['per']
+my_portfolio['epr'] = my_portfolio['epr'].fillna(0)
+my_portfolio.drop(columns = ['per'], inplace = True)
+
+###
 
 for index, row in my_portfolio.iterrows():                                  # iterate over portfolio and add earning price ratio
+    # getting actual bps value
     try:
-        bpr = get_last_bookvalue_price_ratio(index)
-        if np.isnan(bpr['bpr'][0]):
-            my_portfolio.loc[index,'bpr'] = 0
-        else:
-            my_portfolio.loc[index,'bpr'] = bpr['bpr'][0]
+        connection_to_source = sql_engine.connect()
+        source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_edcbps"])
+        query_result = mysql_db.get_mysql_data(connection_to_source, source, columns = CONFIG[METHOD]["columns_source_edcbps"], filter_symbol =  row['symbol_fundamental'], order_by = "date", order_desc = True, limit = 1)
+        connection_to_source.close()
+        my_portfolio.loc[index, 'bps'] = query_result.iloc[-1]['bps'] 
     except:
-        my_portfolio.loc[index,'bpr'] = 0
+        writeLog(CONFIG['file']['log'], 'Error reading fundamental from source', id = log_id)
+    
+my_portfolio['bpr'] = my_portfolio['bps']/my_portfolio['last_close']
+my_portfolio['bpr'] = my_portfolio['bpr'].fillna(0)
+my_portfolio.drop(columns = ['last_close', 'bps'], inplace = True)
+
+### Start optimization
+
 
 my_portfolio['start_weight'] = ts_portfolio.iloc[0]/ts_total.iloc[0]     # share of portfolio as of the first date
 my_portfolio['end_weight'] = ts_portfolio.iloc[-1]/ts_total.iloc[-1]     # share of portfolio as of the last date
@@ -284,8 +380,8 @@ my_portfolio_opt = my_portfolio_opt.reset_index()
 print(my_portfolio)
 print(my_portfolio_opt)
 
-put_dataframe_to_table(dataframe = my_portfolio, table = 'portfolio')
-put_dataframe_to_table(dataframe = my_portfolio_opt, table = 'portfolio_opt')
+# put_dataframe_to_table(dataframe = my_portfolio, table = 'portfolio')
+# put_dataframe_to_table(dataframe = my_portfolio_opt, table = 'portfolio_opt')
 
 # [DEBUG]
 # plot portfolio.perf against portfolio.vola
@@ -295,4 +391,28 @@ put_dataframe_to_table(dataframe = my_portfolio_opt, table = 'portfolio_opt')
 # plt.ylabel('perf')
 # plt.show()
 
-writeLog(LOG_FILE,'Portfolio optimization stopped', id = 'PO2') # log-end
+# store data
+
+try:
+    connection_to_target = sql_engine.connect()
+    target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target_portfolio"])
+    mysql_db.put_dataframe_to_mysql(connection_to_target, target, \
+                                    my_portfolio, CONFIG[METHOD]["pk_target_portfolio"], update_timestamp = True)
+    connection_to_target.close()
+except:
+    writeLog(CONFIG['file']['log'], 'Error writing to '+CONFIG[METHOD]["table_target_portfolio"]+' - no update', id = log_id)
+
+try:
+    connection_to_target = sql_engine.connect()
+    target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target_portfolio_opt"])
+    mysql_db.put_dataframe_to_mysql(connection_to_target, target, \
+                                    my_portfolio_opt, CONFIG[METHOD]["pk_target_portfolio_opt"], update_timestamp = True)
+    connection_to_target.close()
+except:
+    writeLog(CONFIG['file']['log'], 'Error writing to '+CONFIG[METHOD]["table_target_portfolio_opt"]+' - no update', id = log_id)
+
+# 4. log entry and wait
+writeLog(CONFIG['file']['log'], 'End'+LOG_TEXT+'', id = log_id)
+writeLog(CONFIG["file"]["log"], 'Wait'+LOG_TEXT+' for '\
+         +str(CONFIG[METHOD]["delay"])+'s', id = log_id)
+time.sleep(CONFIG[METHOD]["delay"])

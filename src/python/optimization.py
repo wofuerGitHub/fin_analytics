@@ -4,7 +4,7 @@
 File: optimization.py
 Author: Wolfgang Fuerst
 Date: 2025-02-02
-Description: Optimize Evaluate the true value of an asset
+Description: Optimize portfolio in general
 Structure:
     1.    load portfolio & all data
     2.    portfolio calulation of
@@ -102,12 +102,12 @@ sr = []
 ts_portfolio = pd.DataFrame(columns=['date'])
 ts_portfolio.set_index('date', inplace=True)
 
+# load timeseries / last 400 days - quick and dirty
+first_date = datetime.now() + pd.DateOffset(days=-400)
+
 for index, row in portfolio.iterrows():
 
     print(row['isin'], row['companyName'], row['symbol'], row['all']) # print info
-
-    # load timeseries / last 400 days - quick and dirty
-    first_date = datetime.now() + pd.DateOffset(days=-400)
 
     try:
         connection_to_source = sql_engine.connect()
