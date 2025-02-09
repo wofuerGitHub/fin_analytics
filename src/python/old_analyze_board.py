@@ -20,9 +20,9 @@ import pandas as pd
 
 # from scipy.stats import linregress
 
-from mylib.investment_db import get_edcbps_history
-from mylib.investment_db import get_mysql_data
-from mylib.investment_db import put_dataframe_to_table
+from python.mylib.old_investment_db import get_edcbps_history
+from python.mylib.old_investment_db import get_mysql_data
+from python.mylib.old_investment_db import put_dataframe_to_table
 from mylib.writeLog import writeLog
 
 LOG_FILE = './analytics.log'                      # load log-file

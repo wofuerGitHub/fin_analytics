@@ -3,16 +3,18 @@
 """
 File: optimization.py
 Author: Wolfgang Fuerst
-Date: 2025-02-02
+Date: 2025-02-09
 Description: Optimize portfolio in general
 Structure:
-    1.    load portfolio & all data
-    2.    portfolio calulation of
-    2.1   - percentage within portfolio
-    2.2   - overall portfolio virtual performance
-    2.3   - recommanded share within the portfolio
-    3.    store complete table
-            isin, share, percentage, performance, vola, recommanded percentage
+    Load config file
+    Load portfolio & all data
+    Portfolio calulation of
+        - percentage within portfolio
+        - overall portfolio virtual performance
+        - recommanded share within the portfolio
+    Store complete table
+        isin, share, percentage, performance, vola, recommanded percentage
+    Wait according config
 Issues:
     ...
 Runtime: ...
@@ -20,37 +22,38 @@ Runtime: ...
 Args:
     None
 """
+
 from datetime import datetime
 import time
 
 import numpy as np                                              # numpy
 import pandas as pd                                             # pandas
 
-import mylib.config2 as config
-from mylib import mysql_db  # database connection
-
-from mylib.writeLog import writeLog                             # write log
+from mylib import config                                        # read configuration-data
+from mylib.writeLog import writeLog                             # write log file
+from mylib import mysql_db                                      # database connection
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
 from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate performance, vola, sr
+
+# basic config
 
 METHOD = "optimization_1"
 LOG_TEXT = ' general portfolio optimization'
 
-# 1. load config file
+# load config file & write log entry for start
 CONFIG = config.load_config('config.json')["analytics"]
-
-# log entry
 log_id = CONFIG[METHOD]['log_id']
-
-writeLog(CONFIG['file']['log'], 'Start'+LOG_TEXT+'', id = log_id)
+log_text = LOG_TEXT
+writeLog(CONFIG['file']['log'], 'Start'+log_text+'', id = log_id)
 
 # setup the connection to the source database
 mysql_db.set_configuration(**CONFIG["database"])
 sql_engine = mysql_db.create_sql_engine(mysql_db.get_configuration())
 
-# 1.    load portfolio & all candidates from reference
+# load portfolio & all candidates from reference
 
 """
+portfolio:
       symbol          isin                              companyName       all
 167  EXSA.DE  DE0002635307  iShares STOXX Europe 600 UCITS ETF (DE)   544.200
 195    GOOGL  US02079K3059                                 Alphabet   100.000
@@ -58,11 +61,6 @@ sql_engine = mysql_db.create_sql_engine(mysql_db.get_configuration())
 360   PHAU.L  JE00B1VS3770                 WisdomTree Physical Gold   897.662
 427   TEG.DE  DE0008303504                        TAG Immobilien AG  1042.000
 """
-
-# portfolio = get_portfolio()
-# print(portfolio)
-
-# ---
 
 try:
     connection_to_source = sql_engine.connect()
@@ -202,6 +200,7 @@ portfolio['change_sensitivity'] = abs(portfolio['change_perf']/portfolio['change
 portfolio.sort_values(by = ['sector', 'change_perf'], ascending=[True, False], inplace = True)
 
 # store data
+
 try:
     connection_to_target = sql_engine.connect()
     target = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_target"])
@@ -216,7 +215,7 @@ except:
 # plt.show()
 
 # 4. log entry and wait
-writeLog(CONFIG['file']['log'], 'End'+LOG_TEXT+'', id = log_id)
-writeLog(CONFIG["file"]["log"], 'Wait'+LOG_TEXT+' for '\
+writeLog(CONFIG['file']['log'], 'End'+log_text+'', id = log_id)
+writeLog(CONFIG["file"]["log"], 'Wait'+log_text+' for '\
          +str(CONFIG[METHOD]["delay"])+'s', id = log_id)
 time.sleep(CONFIG[METHOD]["delay"])

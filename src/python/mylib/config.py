@@ -1,7 +1,5 @@
 """config module"""
 
-"""old config file 2025-01-11"""
-
 #!/usr/bin/python3
 
 """ {
@@ -26,56 +24,56 @@
 import json
 
 def load_config(file = "config.json"):
+
     with open(file, "r") as f:
         config = json.load(f)
-    return config["analytics"]
+    return config
 
-def getDatabaseHost():
-    config = load_config()
+def get_database_host(config = None):
+    if config:
+        pass
+    else:
+        config = load_config()
     return config['database']['host']
 
-def getDatabasePort():
-    config = load_config()
-    return config['database']['port']
-
-def getDatabaseSchema():
+def get_database_schema():
     config = load_config()
     return config['database']['schema']
 
-def getDatabaseUser():
+def get_database_user():
     config = load_config()
     return config['database']['user']
 
-def getDatabasePassword():
+def get_database_password():
     config = load_config()
     return config['database']['password']
 
 # ---
 
-def getFmgApiKey():
+def get_fmg_api_key():
     config = load_config()
     return config['fmg']['apiKey']
 
-def getFmgSpeed():
+def get_fmg_speed():
     config = load_config()
     return config['fmg']['speed']
 
 # ---
 
-def getFileLog():
+def get_file_log():
     config = load_config()
     return config['file']['log']
 
-def getFileDebug():
+def get_file_debug():
     config = load_config()
     return config['file']['debug']
 
-def getFileSpeedControl():
+def get_file_speed_control():
     config = load_config()
     return config['file']['speedControl']
 
 # ---
 
-def getDebug():
+def get_debug():
     config = load_config()
     return config['debug']

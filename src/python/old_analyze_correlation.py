@@ -20,8 +20,8 @@ import pandas as pd                                             # pandas
 from mylib.writeLog import writeLog                             # write log
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
 from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate performance, vola, sr
-from mylib.investment_db import get_quote_eur_timeserie_all_1y
-from mylib.investment_db import put_dataframe_to_table
+from python.mylib.old_investment_db import get_quote_eur_timeserie_all_1y
+from python.mylib.old_investment_db import put_dataframe_to_table
 
 LOG_FILE = './fin_analytics.log'                                            # load log-file
 

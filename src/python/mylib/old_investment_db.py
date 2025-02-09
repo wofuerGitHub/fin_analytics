@@ -6,11 +6,11 @@ from datetime import datetime
 import pandas as pd
 import sqlalchemy as sql
 
-from mylib.config import getDatabaseHost
-from mylib.config import getDatabasePort
-from mylib.config import getDatabaseSchema
-from mylib.config import getDatabaseUser
-from mylib.config import getDatabasePassword
+from python.mylib.old_config import getDatabaseHost
+from python.mylib.old_config import getDatabasePort
+from python.mylib.old_config import getDatabaseSchema
+from python.mylib.old_config import getDatabaseUser
+from python.mylib.old_config import getDatabasePassword
 
 
 HOST = getDatabaseHost()

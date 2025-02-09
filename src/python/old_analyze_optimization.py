@@ -9,9 +9,9 @@ from mylib.writeLog import writeLog                             # write log
 from mylib.financialFunctions import standardizeTimeSerie       # standardize ts
 from mylib.financialFunctions import performanceAndVolaAndSR    # caluclate performance, vola, sr
 
-from mylib.investment_db import get_portfolio
-from mylib.investment_db import get_quote_eur_timeserie
-from mylib.investment_db import put_dataframe_to_table
+from python.mylib.old_investment_db import get_portfolio
+from python.mylib.old_investment_db import get_quote_eur_timeserie
+from python.mylib.old_investment_db import put_dataframe_to_table
 
 # import matplotlib.pyplot as plt
 

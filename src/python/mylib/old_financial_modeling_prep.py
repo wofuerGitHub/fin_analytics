@@ -7,11 +7,11 @@ import time
 import json
 import certifi
 
-from mylib.config import getFmgSpeed
-from mylib.config import getFileSpeedControl
+from python.mylib.old_config import getFmgSpeed
+from python.mylib.old_config import getFileSpeedControl
 
-from mylib.config import getDebug
-from mylib.config import getFileDebug
+from python.mylib.old_config import getDebug
+from python.mylib.old_config import getFileDebug
 
 from mylib.writeLog import writeLog
 
