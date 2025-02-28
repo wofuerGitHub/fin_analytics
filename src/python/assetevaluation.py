@@ -131,6 +131,8 @@ for row in result_table.itertuples():
         print(debug_message)
         continue
 
+    ts = ts.dropna() # deleting NaN eps rows
+
     # getting actual eps value
     try:
         connection_to_source = sql_engine.connect()
