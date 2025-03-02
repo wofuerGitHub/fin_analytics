@@ -69,7 +69,7 @@ try:
                                         columns = CONFIG[METHOD]["columns_source_portfolio"])
     connection_to_source.close()
 except:
-    writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
+    writeLog(CONFIG['file']['log'], 'Error reading symbols from portfolio source', id = log_id)
 
 try:
     connection_to_source = sql_engine.connect()
@@ -79,12 +79,13 @@ try:
                                         columns = CONFIG[METHOD]["columns_source_reference"])
     connection_to_source.close()
 except:
-    writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
+    writeLog(CONFIG['file']['log'], 'Error reading symbols from reference source', id = log_id)
 
 # merge with the leading table is the portfolio, not to loose any
 # 1. reference-items not in portfolio: reference.loc[~reference['isin'].isin(portfolio['isin'])]
 # 2. concat & replace nan by 0
 reference = reference.loc[~reference['isin'].isin(portfolio['isin'])]
+reference = reference[reference['active'] == 1]
 portfolio = pd.concat([portfolio, reference])
 portfolio['all'] = portfolio['all'].fillna(0)
 

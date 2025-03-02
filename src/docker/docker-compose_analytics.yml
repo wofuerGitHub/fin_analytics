@@ -31,6 +31,10 @@ services:
     container_name: fin_analytics_assetevaluation
     image: fin_analytics_assetevaluation
     <<: *service_defaults
+  fin_analytics_board:
+    container_name: fin_analytics_board
+    image: fin_analytics_board
+    <<: *service_defaults
   fin_analytics_correlation:
     container_name: fin_analytics_correlation
     image: fin_analytics_correlation
