@@ -19,10 +19,10 @@
       "columns_source_edcbps": ["date", "eps"],      
       "table_source_ts": "eur_ts_quote",
       "columns_source_ts": ["date", "close", "eps"],
-      "table_target_eps_raw": "eps_analyzed_raw_2",
+      "table_target_eps_raw": "eps_analyzed_raw",
       "columns_target_eps_raw": ["symbol", "date", "eps", "epsStar", "growth", "growthStar", "lastEight", "lastX", "trend", "sevenYearAvg"],
       "pk_target_eps_raw": ["symbol", "date", "created"],
-      "table_target_eps": "eps_analyzed_2",
+      "table_target_eps": "eps_analyzed",
       "columns_target_eps": ["symbol", "date", "type", "risk", "rsq", "close", "sevenYears", "fifteenYears", "twentyYears", "interest"],
       "pk_target_eps": ["symbol", "date", "created"],
       "delay": 7200.0

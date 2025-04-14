@@ -48,24 +48,30 @@ writeLog(CONFIG['file']['log'], 'Start'+log_text+'', id = log_id)
 
 def trend(known_data_y, known_data_x, new_data_x):
     """TREND - linear approximation"""
-    polynomial_coefficients = np.polyfit(known_data_x, known_data_y, 1)
-    f = np.poly1d(polynomial_coefficients)
-    return f(new_data_x)
+    if len(known_data_y[:]) > 0:
+        polynomial_coefficients = np.polyfit(known_data_x, known_data_y, 1)
+        f = np.poly1d(polynomial_coefficients)
+        return f(new_data_x)
+    else:
+        return np.nan
 
 def growth(known_data_y, known_data_x, new_data_x):
     """GROWTH - exponential approximation"""
-    if min(known_data_y[:]) > 0:
-        def func(x, a, b):
-            return a*np.power(b,x/365)              # a*np.power(b,x/365)
-        a = max(0.01, np.mean(known_data_y))        # min eps 0.1
-        b = 1                                       # with a growth of 0% [-50% ... +50%] annual
-        # print(a, b, c)
-        popt, pcov = curve_fit(func, known_data_x, known_data_y, p0 = (a, b), \
-                               bounds = ([-np.inf, .5], [np.inf, 1.5]), maxfev= 10000)
-        # print(popt)
-        # print(pcov)
-        # print(np.sqrt(np.diag(pcov)))
-        return func(new_data_x, *popt)
+    if len(known_data_y[:]) > 0:
+        if min(known_data_y[:]) > 0:
+            def func(x, a, b):
+                return a*np.power(b,x/365)              # a*np.power(b,x/365)
+            a = max(0.01, np.mean(known_data_y))        # min eps 0.1
+            b = 1                                       # with a growth of 0% [-50% ... +50%] annual
+            # print(a, b, c)
+            popt, pcov = curve_fit(func, known_data_x, known_data_y, p0 = (a, b), \
+                                bounds = ([-np.inf, .5], [np.inf, 1.5]), maxfev= 10000)
+            # print(popt)
+            # print(pcov)
+            # print(np.sqrt(np.diag(pcov)))
+            return func(new_data_x, *popt)
+        else:
+            return np.nan
     else:
         return np.nan
 
@@ -85,9 +91,12 @@ def average_item(known_data_y, known_data_x, new_data_x, number_of_items):
 
 def rsq(known_data_x, known_data_y):
     """RSQ - root square"""
-    corr_matrix = np.corrcoef(known_data_x, known_data_y)
-    corr = corr_matrix[0,1]
-    return corr**2
+    if len(known_data_y[:].dropna()) > 0:
+        corr_matrix = np.corrcoef(known_data_x, known_data_y)
+        corr = corr_matrix[0,1]
+        return corr**2
+    else:
+        return np.nan
 
 ### FUNCTIONS END ###
 
@@ -108,6 +117,7 @@ except:
     writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
 
 # DEBUG print(data)
+# result_table = result_table.loc[472:]
 
 for row in result_table.itertuples():
 
@@ -118,20 +128,20 @@ for row in result_table.itertuples():
     debug_message = ''+companyName+' : '+symbol+'\n'
 
     # getting historical edcbps values
-    try:
-        connection_to_source = sql_engine.connect()
-        source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_edcbps"])
-        ts = mysql_db.get_mysql_data(connection_to_source, source, \
-                                    columns = CONFIG[METHOD]["columns_source_edcbps"], \
-                                    filter_symbol = symbol_fundamental, order_by = "date", \
-                                    order_desc = True, limit = 10)
-        connection_to_source.close()
-    except:
-        debug_message = debug_message + 'Could not query edcbps_eur\n'
-        print(debug_message)
-        continue
-
-    ts = ts.dropna() # deleting NaN eps rows
+    if symbol_fundamental is not None:
+        try:
+            connection_to_source = sql_engine.connect()
+            source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_edcbps"])
+            ts = mysql_db.get_mysql_data(connection_to_source, source, \
+                                        columns = CONFIG[METHOD]["columns_source_edcbps"], \
+                                        filter_symbol = symbol_fundamental, order_by = "date", \
+                                        order_desc = True, limit = 10)
+            connection_to_source.close()
+        except:
+            debug_message = debug_message + 'Could not query edcbps_eur\n'
+            print(debug_message)
+            continue
+        ts = ts.dropna() # deleting NaN eps rows
 
     # getting actual eps value
     try:
@@ -152,8 +162,11 @@ for row in result_table.itertuples():
     if ts_last['eps'].any() == 0:   # catch items that have no actual eps like Gold --> 0.0
         ts_last['eps'] = np.nan
         debug_message = debug_message + 'Catch eps = 0.0\n'
-
-    ts = pd.concat([ts_last, ts])
+    
+    if symbol_fundamental is not None:
+        ts = pd.concat([ts_last, ts])
+    else:
+            ts = ts_last
     ts['date'] = pd.to_datetime(ts['date'])
 
     # adding the future
@@ -227,20 +240,27 @@ for row in result_table.itertuples():
                                         ts['date_ordinal'], ts_future['date_ordinal']),3)
 
     # LAST-x% - putting in relation the last change to the average go on based on this [-33%,8%]
-    percent = min(8, (ts_future.iloc[max(ts_future['eps'].dropna().index)+1]['TREND'] \
-                    - ts_future.iloc[max(ts_future['eps'].dropna().index)]['TREND']) \
-                    / np.abs(ts_future.iloc[max(ts_future['eps'].dropna().index)]['7Y-AVG']) \
-                    * 100)
-    percent = max (percent, -33)
-    ts_future['LAST-X%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], \
-                                                 ts_future['date_ordinal'], percent), 3)
+    try:
+        percent = min(8, (ts_future.iloc[max(ts_future['eps'].dropna().index)+1]['TREND'] \
+                        - ts_future.iloc[max(ts_future['eps'].dropna().index)]['TREND']) \
+                        / np.abs(ts_future.iloc[max(ts_future['eps'].dropna().index)]['7Y-AVG']) \
+                        * 100)
+        percent = max (percent, -33)
+        ts_future['LAST-X%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], \
+                                                    ts_future['date_ordinal'], percent), 3)
+    except:
+        percent = np.nan
+        ts_future['LAST-X%'] = np.nan
 
     # LAST-8% - calculating growth of 8% with the last 3 values (always successful)
     ts_future['LAST-8%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], \
                                                  ts_future['date_ordinal'], 8), 3)
 
     result = {}
-    idx = max(ts_future['eps'].dropna().index)
+    try:
+        idx = max(ts_future['eps'].dropna().index)
+    except:
+        idx = 10
     investment_types = ['TREND', 'GROWTH', 'GROWTH*', 'LAST-X%', 'LAST-8%', '7Y-AVG']
     for type in investment_types:
         result[type] = {}
@@ -263,18 +283,18 @@ for row in result_table.itertuples():
     # decision tree
     INVESTMENT_TYPE = ''
     INVESTMENT_TYPE_2 = ''
-    if result['GROWTH']['Value'] <= 8:      # result based on all positive eps (best)
+    if result['GROWTH']['Value'] <= 8:              # all positive eps - straight forward calculation (best)
         INVESTMENT_TYPE = 'GROWTH'
-    elif result['GROWTH']['Value'] > 8:     # if growth was >8%, result limited to 8% maximum
+    elif result['GROWTH']['Value'] > 8:             # all positive eps, >8% - limited to 8% forward calculation (best)
         INVESTMENT_TYPE = 'LAST-8%'
-    elif result['GROWTH*']['Value'] <= 8:   # result based on corrected eps (2nd best)
+    elif result['GROWTH*']['Value'] <= 8:           # like GROWTH (2nd best)
         INVESTMENT_TYPE = 'GROWTH*'
-    elif result['GROWTH*']['Value'] > 8:    # if growth* was >8%, result limited to 8% maximum
+    elif result['GROWTH*']['Value'] > 8:            # like LAST-8% (2nd best)
         INVESTMENT_TYPE = 'LAST-8%'
-        INVESTMENT_TYPE_2 = '*'             # workaround to add '*' to 'LAST-8%' based on 'GROWTH*'
-    elif not np.isnan(result['LAST-X%']['Value']):
+        INVESTMENT_TYPE_2 = '*'                     # workaround to add '*' to 'LAST-8%' based on 'GROWTH*'
+    elif not np.isnan(result['LAST-X%']['Value']):  # last value with x%
         INVESTMENT_TYPE = 'LAST-X%'
-    else:                                   # absolute exception, normally gowing down
+    else:                                           # absolute exception, normally going down
         INVESTMENT_TYPE = 'TREND'
 
     if result['TREND']['20Y'] <= 0:
@@ -338,6 +358,9 @@ for row in result_table.itertuples():
             'interest': [result[INVESTMENT_TYPE]['Value']], \
             'created': dt.datetime.now().strftime('%Y-%m-%d')}
     condensedView = pd.DataFrame(data=dataset)
+
+    # DEBUG
+    # print(condensedView)
 
     try:
         connection_to_target = sql_engine.connect()
