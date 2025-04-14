@@ -4,7 +4,8 @@
 File: board.py
 Author: Wolfgang Fuerst
 Date: 2025-03-01
-Description: Optimize portfolio specific on SR, EPR, BPR
+Description: Optimize portfolio specific on SR, EPR, BPR.
+    Timeserie is interpolated, so that even on non-trading days, the ratios are calculated correct
 Structure:
     1.    load _reference_map & got through if active
     2.    walk through and get timeserie and fundamental

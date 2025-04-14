@@ -40,7 +40,7 @@
       "columns_target_board": ["date", "symbol", "grossProfitRatio", "researchAndDevelopmentRatio", "interestExpenseRatio", 
       "per_est", "per_mean", "pdr_est", "pdr_mean", "pcr_est", "pcr_mean", "pbr_est", "pbr_mean", "ppr_est", "ppr_mean"],
       "pk_target_board": ["symbol"],
-      "delay": 1.0
+      "delay": 7200.0
     },
     "check": {
       "log_id": ""
