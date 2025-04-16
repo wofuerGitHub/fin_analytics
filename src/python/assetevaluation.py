@@ -117,6 +117,7 @@ except:
     writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
 
 # DEBUG print(data)
+result_table = result_table.loc[165:]
 # result_table = result_table.loc[472:]
 
 for row in result_table.itertuples():
@@ -160,14 +161,15 @@ for row in result_table.itertuples():
         continue
 
     if ts_last['eps'].any() == 0:   # catch items that have no actual eps like Gold --> 0.0
-        ts_last['eps'] = np.nan
+        ts_last.loc[:, 'eps'] = np.nan
         debug_message = debug_message + 'Catch eps = 0.0\n'
-    
+
     if symbol_fundamental is not None:
-        ts = pd.concat([ts_last, ts])
+        ts = pd.concat(df.dropna(axis=1, how='all') for df in [ts_last, ts])
+        # hint: ts = pd.concat([ts_last, ts]) issues with NaN only ts_last
     else:
             ts = ts_last
-    ts['date'] = pd.to_datetime(ts['date'])
+    ts.loc[:, 'date'] = pd.to_datetime(ts['date'], format='%Y%m%d')
 
     # adding the future
     ts_future = pd.DataFrame()
@@ -245,7 +247,7 @@ for row in result_table.itertuples():
                         - ts_future.iloc[max(ts_future['eps'].dropna().index)]['TREND']) \
                         / np.abs(ts_future.iloc[max(ts_future['eps'].dropna().index)]['7Y-AVG']) \
                         * 100)
-        percent = max (percent, -33)
+        percent = max(percent, -33)
         ts_future['LAST-X%'] = np.round(last_percent(ts['eps'], ts['date_ordinal'], \
                                                     ts_future['date_ordinal'], percent), 3)
     except:
@@ -270,7 +272,10 @@ for row in result_table.itertuples():
             result[type]['Value'] = np.round((ts_future.iloc[idx+1][type] \
                                             - ts_future.iloc[idx][type]) \
                                             / np.abs(ts_future.iloc[idx][type])*100,1)
-        result[type]['RSQ'] = np.round(rsq(ts_future[:idx+1]['eps'], ts_future[:idx+1][type]),3)
+        if type != '7Y-AVG':
+            result[type]['RSQ'] = np.round(rsq(ts_future[:idx+1]['eps'], ts_future[:idx+1][type]),3)
+        else:
+            result[type]['RSQ'] = np.nan
         result[type]['7Y'] = np.round(ts_future.iloc[idx+1:idx+7][type].sum(),3)
         result[type]['15Y'] = np.round(ts_future.iloc[idx+1:idx+15][type].sum(),3)
         result[type]['20Y'] = np.round(ts_future.iloc[idx+1:idx+20][type].sum(),3)
@@ -283,18 +288,26 @@ for row in result_table.itertuples():
     # decision tree
     INVESTMENT_TYPE = ''
     INVESTMENT_TYPE_2 = ''
-    if result['GROWTH']['Value'] <= 8:              # all positive eps - straight forward calculation (best)
+    if result['GROWTH']['Value'] <= 8:
+        # all positive eps - straight forward calculation (best)
         INVESTMENT_TYPE = 'GROWTH'
-    elif result['GROWTH']['Value'] > 8:             # all positive eps, >8% - limited to 8% forward calculation (best)
+    elif result['GROWTH']['Value'] > 8:
+        # all positive eps, >8% - limited to 8% forward calc. on last 3 values (best)
         INVESTMENT_TYPE = 'LAST-8%'
-    elif result['GROWTH*']['Value'] <= 8:           # like GROWTH (2nd best)
+        result[INVESTMENT_TYPE]['Value'] = result['GROWTH']['Value']
+    elif result['GROWTH*']['Value'] <= 8:
+        # like GROWTH (2nd best)
         INVESTMENT_TYPE = 'GROWTH*'
-    elif result['GROWTH*']['Value'] > 8:            # like LAST-8% (2nd best)
+    elif result['GROWTH*']['Value'] > 8:
+        # like LAST-8% (2nd best)
         INVESTMENT_TYPE = 'LAST-8%'
-        INVESTMENT_TYPE_2 = '*'                     # workaround to add '*' to 'LAST-8%' based on 'GROWTH*'
-    elif not np.isnan(result['LAST-X%']['Value']):  # last value with x%
+        INVESTMENT_TYPE_2 = '*' # workaround: add '*' to 'LAST-8%' based on 'GROWTH*'
+        result[INVESTMENT_TYPE]['Value'] = result['GROWTH*']['Value']
+    elif not np.isnan(result['LAST-X%']['Value']):
+        # last value with x%
         INVESTMENT_TYPE = 'LAST-X%'
-    else:                                           # absolute exception, normally going down
+    else:
+        # absolute exception, normally going down
         INVESTMENT_TYPE = 'TREND'
 
     if result['TREND']['20Y'] <= 0:
@@ -360,7 +373,7 @@ for row in result_table.itertuples():
     condensedView = pd.DataFrame(data=dataset)
 
     # DEBUG
-    # print(condensedView)
+    print(condensedView)
 
     try:
         connection_to_target = sql_engine.connect()
