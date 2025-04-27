@@ -117,7 +117,7 @@ except:
     writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
 
 # DEBUG print(data)
-result_table = result_table.loc[165:]
+# result_table = result_table.loc[165:]
 # result_table = result_table.loc[472:]
 
 for row in result_table.itertuples():
