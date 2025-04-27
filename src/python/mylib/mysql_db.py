@@ -10,7 +10,8 @@ Description: Interaction with MYSQL-db based on sqlalchemy
 Issues:
     ...
 Updates:
-    2025-01-11: added 
+    2025-01-11 & 2025-01-22: added filter to get_mysql_data
+    2025-04-27: removed get_mysql_data_old and added filter_start_date and filter_end_date get_mysql_data
 Runtime: ...
 """
 
@@ -112,36 +113,6 @@ def get_metatable(engine, table: str):
     meta.reflect(engine)
     return meta.tables[table]
 
-def get_mysql_data_old(connection, table:str, **kwargs):
-    """
-    Read a MySQL table into a pandas DataFrame.
-
-    Args:
-        table (sqlalchemy.sql.schema.Table): table to be read into a DataFrame.
-        columns (array): columns to be read
-        filter_updated (str_time): filters for everything newer than given datetime
-        order_by (str): column based on to be orderd
-        order_desc (bool): True on descending order
-        limit (int): rows to read
-
-    Returns:
-        dataframe: DataFrame containing the data from the table.
-    """
-    columns = kwargs.get('columns', table.columns.keys())
-    filter_updated = kwargs.get('filter_updated', None)
-    order_by = kwargs.get('order_by', None)
-    order_desc = kwargs.get('order_desc', False)
-    limit = kwargs.get('limit', None)
-    stmt = select(*[getattr(table.c, attr) for attr in columns]).limit(limit)
-    if filter_updated is not None:
-        stmt = stmt.filter(getattr(table.c, 'updated') >= filter_updated)
-    if order_by is not None:
-        if order_desc is True:
-            stmt = stmt.order_by(getattr(table.c, order_by).desc())
-        else:
-            stmt = stmt.order_by(getattr(table.c, order_by).asc())
-    return pd.read_sql_query(stmt, connection)
-    
 def get_mysql_data(connection, table:str, **kwargs):
     """
     Read a MySQL table into a pandas DataFrame.
@@ -151,6 +122,8 @@ def get_mysql_data(connection, table:str, **kwargs):
         columns (array): columns to be read
         filter_symbol (str): filters for a certain string
         filter_date (str_time): filters for everything newer than a given datetime
+        filter_start_date (str_time): filters for everything newer than a given datetime
+        filter_end_date (str_time): filters for everything older than a given datetime
         filter_updated (str_time): filters for everything newer than given datetime
         order_by (str): column based on to be orderd
         order_desc (bool): True on descending order
@@ -162,6 +135,7 @@ def get_mysql_data(connection, table:str, **kwargs):
     Updates:
         2025-01-11 Integration of filter_date for analytics
         2025-01-22 Integration of filter_symbol
+        2025-04-27 Integration of filter_start_date and filter_end_date
     """
     columns = kwargs.get('columns', table.columns.keys())
     filter_symbol = kwargs.get('filter_symbol', None)
@@ -175,6 +149,10 @@ def get_mysql_data(connection, table:str, **kwargs):
         stmt = stmt.filter(getattr(table.c, 'symbol') == filter_symbol)    
     if filter_date is not None:
         stmt = stmt.filter(getattr(table.c, 'date') >= filter_date)
+    if filter_start_date is not None:
+        stmt = stmt.filter(getattr(table.c, 'date') >= filter_start_date)
+    if filter_end_date is not None:
+        stmt = stmt.filter(getattr(table.c, 'date') <= filter_end_date)
     if filter_updated is not None:
         stmt = stmt.filter(getattr(table.c, 'updated') >= filter_updated)
     if order_by is not None:
