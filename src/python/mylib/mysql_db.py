@@ -140,6 +140,8 @@ def get_mysql_data(connection, table:str, **kwargs):
     columns = kwargs.get('columns', table.columns.keys())
     filter_symbol = kwargs.get('filter_symbol', None)
     filter_date = kwargs.get('filter_date', None)
+    filter_start_date = kwargs.get('filter_start_date', None)
+    filter_end_date = kwargs.get('filter_end_date', None)
     filter_updated = kwargs.get('filter_updated', None)
     order_by = kwargs.get('order_by', None)
     order_desc = kwargs.get('order_desc', False)
