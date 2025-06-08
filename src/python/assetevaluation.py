@@ -3,7 +3,7 @@
 """
 File: asssetevaluation.py
 Author: Wolfgang Fuerst
-Date: 2025-02-09
+Date: 2025-06-08
 Description: Evaluate the true value of all assets
 Structure:
     Load config file
@@ -11,6 +11,8 @@ Structure:
     Calculate intrinsic value
     Save data
     Wait according config
+History:
+    2025-06-08: introduced possibility to set end_date via command line
 Issues:
     ...
 Runtime: 
@@ -20,6 +22,7 @@ Args:
 """
 import datetime as dt
 import json
+import sys
 import time                                                     # requ. to wait
 import pandas as pd                                             # pandas
 import numpy as np                                              # numpy
@@ -32,6 +35,15 @@ from mylib.writeLog import writeLog                             # write log file
 from mylib import mysql_db                                      # database connection
 
 # basic config
+
+if sys.argv[-1]:
+    end_date = sys.argv[-1]
+    try:
+        dt.date.fromisoformat(end_date)
+    except ValueError:
+        end_date = dt.datetime.now().strftime('%Y-%m-%d')
+else:
+    end_date = dt.datetime.now().strftime('%Y-%m-%d')
 
 METHOD = "assetevaluation"
 LOG_TEXT = ' asset evaluation'
@@ -117,8 +129,8 @@ except:
     writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
 
 # DEBUG print(data)
-# result_table = result_table.loc[165:]
-# result_table = result_table.loc[472:]
+# result_table = result_table.loc[166:]
+# result_table = result_table.loc[790:]
 
 for row in result_table.itertuples():
 
@@ -135,7 +147,9 @@ for row in result_table.itertuples():
             source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_edcbps"])
             ts = mysql_db.get_mysql_data(connection_to_source, source, \
                                         columns = CONFIG[METHOD]["columns_source_edcbps"], \
-                                        filter_symbol = symbol_fundamental, order_by = "date", \
+                                        filter_symbol = symbol_fundamental, \
+                                        filter_end_date = end_date, \
+                                        order_by = "date", \
                                         order_desc = True, limit = 10)
             connection_to_source.close()
         except:
@@ -150,7 +164,9 @@ for row in result_table.itertuples():
         source = mysql_db.get_metatable(sql_engine, CONFIG[METHOD]["table_source_ts"])
         query_result = mysql_db.get_mysql_data(connection_to_source, source, \
                                             columns = CONFIG[METHOD]["columns_source_ts"], \
-                                            filter_symbol = symbol, order_by = "date", \
+                                            filter_symbol = symbol, \
+                                            filter_end_date = end_date, \
+                                            order_by = "date", \
                                             order_desc = True, limit = 1)
         connection_to_source.close()
         ts_last = query_result[['date','eps']]
@@ -362,14 +378,13 @@ for row in result_table.itertuples():
         debug_message = debug_message + 'Could not write raw-data\n'
 
     WRITE_INVESTMENT_TYPE = INVESTMENT_TYPE + INVESTMENT_TYPE_2 # add '*' to 'LAST-8%'
-    dataset = {'symbol': [symbol], 'date': [dt.datetime.now().strftime('%Y-%m-%d')], \
+    dataset = {'symbol': [symbol], 'date': [end_date], \
             'type': [WRITE_INVESTMENT_TYPE], 'risk': [result['Risk']], \
             'rsq': [result[INVESTMENT_TYPE]['RSQ']], 'close': close, \
             'sevenYears': [result[INVESTMENT_TYPE]['7Y']], \
             'fifteenYears': [result[INVESTMENT_TYPE]['15Y']], \
             'twentyYears': [result[INVESTMENT_TYPE]['20Y']], \
-            'interest': [result[INVESTMENT_TYPE]['Value']], \
-            'created': dt.datetime.now().strftime('%Y-%m-%d')}
+            'interest': [result[INVESTMENT_TYPE]['Value']]}
     condensedView = pd.DataFrame(data=dataset)
 
     # DEBUG
