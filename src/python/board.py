@@ -58,6 +58,10 @@ except:
 
 first_date = datetime.now() + pd.DateOffset(years =- CONFIG[METHOD]["period"])
 
+ref_data = ref_data.loc[ref_data['symbol'] == 'IVV']
+# ref_data = ref_data.loc[ref_data['symbol'] == 'EXSA.DE']
+# ref_data = ref_data.loc[ref_data['symbol'] == 'WMT']
+
 for row in ref_data.itertuples():
     print(row.active, row.symbol, row.symbol_fundamental)
 
@@ -99,14 +103,18 @@ for row in ref_data.itertuples():
         fun['date'] =  pd.to_datetime(fun['date'])
         fun = fun.set_index('date')
 
- #       fun = fun.dropna(axis = 1)  # drops colomns that are empty
+#       fun = fun.dropna(axis = 1)  # drops colomns that are empty
 
-        output = pd.concat([fun, ts], axis = 1).dropna(axis = 0).mean(axis = 0, numeric_only = True)
+#       13.07.2025: Changed on problem with old implementation to mean over NaN values
+#       now it goes for eps where they are not-null
+#       output = pd.concat([fun, ts], axis = 1).dropna(axis = 0).mean(axis = 0, numeric_only = True)
+#       output = output.dropna(axis = 0)
+        output = pd.concat([fun, ts], axis = 1)
+        output = output.loc[~output['eps'].isnull()].mean(axis = 0, numeric_only = True)       
 
 # 3. calculate rations per_est, per_mean, ...
-        output = output.dropna(axis = 0)
 
-        print(output)
+#       print(output)
 
         data_set = {"date": last_date, "symbol": row.symbol, "companyName": row.companyName}        
         if 'grossProfitRatio' in output: data_set["grossProfitRatio"] = str(output.grossProfitRatio)

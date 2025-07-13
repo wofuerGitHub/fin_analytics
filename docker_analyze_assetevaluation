@@ -23,4 +23,5 @@ RUN mkdir ./plot
 COPY src/python/assetevaluation.py .
 
 # command to run on container start
-CMD [ "python", "./assetevaluation.py" ]
+ENTRYPOINT [ "python", "./assetevaluation.py"]
+CMD ["none"]
