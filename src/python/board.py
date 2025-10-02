@@ -58,7 +58,7 @@ except:
 
 first_date = datetime.now() + pd.DateOffset(years =- CONFIG[METHOD]["period"])
 
-ref_data = ref_data.loc[ref_data['symbol'] == 'IVV']
+# ref_data = ref_data.loc[ref_data['symbol'] == 'IVV']
 # ref_data = ref_data.loc[ref_data['symbol'] == 'EXSA.DE']
 # ref_data = ref_data.loc[ref_data['symbol'] == 'WMT']
 
