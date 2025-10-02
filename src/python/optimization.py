@@ -184,14 +184,14 @@ portfolio['sr_min_vola_rec'] = sr_new
 
 portfolio['sector'] = 4
 for index, row in portfolio.iterrows():
-    if portfolio.loc[index, 'perf_all'] < portfolio.loc[index, 'perf_min_vola_rec'] and \
-        portfolio.loc[index, 'vola_all'] > portfolio.loc[index, 'vola_min_vola_rec']:
+    if (portfolio.loc[index, 'perf_all'] < portfolio.loc[index, 'perf_min_vola_rec']).all() and \
+        (portfolio.loc[index, 'vola_all'] > portfolio.loc[index, 'vola_min_vola_rec']).all():
         portfolio.loc[index, 'sector'] = 1
-    if portfolio.loc[index, 'perf_all'] > portfolio.loc[index, 'perf_min_vola_rec'] and \
-        portfolio.loc[index, 'vola_all'] > portfolio.loc[index, 'vola_min_vola_rec']:
+    if (portfolio.loc[index, 'perf_all'] > portfolio.loc[index, 'perf_min_vola_rec']).all() and \
+        (portfolio.loc[index, 'vola_all'] > portfolio.loc[index, 'vola_min_vola_rec']).all():
         portfolio.loc[index, 'sector'] = 3
-    if portfolio.loc[index, 'sector'] == 4:
-        if portfolio.loc[index, 'perf_all'] < portfolio.loc[index, 'one_percent_perf']:
+    if (portfolio.loc[index, 'sector'] == 4).all():
+        if (portfolio.loc[index, 'perf_all'] < portfolio.loc[index, 'one_percent_perf']).all():
             portfolio.loc[index, 'sector'] = 2
 
 portfolio['change_perf'] = portfolio['one_percent_perf']-portfolio['perf_all']
@@ -201,6 +201,7 @@ portfolio['change_sensitivity'] = abs(portfolio['change_perf']/portfolio['change
 portfolio.sort_values(by = ['sector', 'change_perf'], ascending=[True, False], inplace = True)
 
 # store data
+print(portfolio[portfolio['isin'].duplicated(keep=False)]) # should be empty because of not storable
 
 try:
     connection_to_target = sql_engine.connect()
