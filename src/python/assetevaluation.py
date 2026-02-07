@@ -128,6 +128,13 @@ try:
 except:
     writeLog(CONFIG['file']['log'], 'Error reading symbols from source', id = log_id)
 
+# remove items without fundamental data and with zero active quantity (if available)
+result_table = result_table[
+    result_table["symbol_fundamental"].notna() &
+    (result_table["active"] != 0)
+]
+result_table.reset_index(drop=True, inplace=True)
+
 # DEBUG print(data)
 # result_table = result_table.loc[166:]
 # result_table = result_table.loc[790:]

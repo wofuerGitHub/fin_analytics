@@ -14,7 +14,7 @@
       "log_id": "FAE",
       "plot_chart": false,
       "table_source_reference": "_reference_map",
-      "columns_source_reference": ["symbol", "symbol_fundamental", "companyName"],
+      "columns_source_reference": ["symbol", "symbol_fundamental", "companyName", "active"],
       "table_source_edcbps": "eur_fun",
       "columns_source_edcbps": ["date", "eps"],      
       "table_source_ts": "eur_ts_quote",
