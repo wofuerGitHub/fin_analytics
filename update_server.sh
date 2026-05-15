@@ -1,6 +1,7 @@
 # !/bin/bash
 dockerFile="docker_analyze_assetevaluation"
 imageName="fin_analytics_assetevaluation"
+yamlFile="docker-compose_analytics.yml"
 
 # --- local machine ---
 
@@ -15,7 +16,7 @@ docker save ${imageName}:latest -o ${imageName}_latest.tar
 
 #3: copy the tar file to the server
 
-rsync -avz --progress --inplace ${imageName}_latest.tar wolfgang@149.102.143.132:/home/wolfgang/${imageName}_latest.tar
+rsync -avz --progress --inplace ${imageName}_latest.tar wolfgang@data.wofuer.com:/home/wolfgang/${imageName}_latest.tar
 
 #4: remove the local tar file
 rm ${imageName}_latest.tar
@@ -24,12 +25,12 @@ rm ${imageName}_latest.tar
 
 # 5: list server containers and stop the current container and remove it; remove unused images
 
-# ssh wolfgang@149.102.143.132 'docker ps -a && \
-#   docker stop fin_analytics_assetevaluation || true && \
-#   docker rm   fin_analytics_assetevaluation || true && \
-#   docker image prune -f || true && \
-#   docker load -i /home/wolfgang/fin_analytics_assetevaluation_latest.tar'
+ssh wolfgang@data.wofuer.com "docker ps -a && \
+   docker stop ${imageName} || true && \
+   docker rm   ${imageName} || true && \
+   docker image prune -f || true && \
+   docker load -i /home/wolfgang/${imageName}_latest.tar"
 
 # 6: run the new container always at server as manual step
 
-# ssh wolfgang@149.102.143.132 'docker compose -f /home/wolfgang/docker-compose_analytics_2.yml up -d --build'
+ssh wolfgang@data.wofuer.com "docker compose -f /home/wolfgang/${yamlFile} up -d --build ${imageName}" 

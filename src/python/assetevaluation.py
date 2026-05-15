@@ -311,7 +311,7 @@ for row in result_table.itertuples():
         try:
             # hit = future[future >= close].index[0]-idx
             hit = future[future >= close].index[0]
-            result[type]["Doubled"] = (close-future[hit-1])/(future[hit]-future[hit-1])+hit-idx
+            result[type]["Doubled"] = np.round((close-future[hit-1])/(future[hit]-future[hit-1])+hit-idx, 2)
         except IndexError:
             result[type]["Doubled"] = np.nan
 # --- example to calculate when the value doubles based on the projection ---
