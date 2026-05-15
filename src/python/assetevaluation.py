@@ -13,6 +13,7 @@ Structure:
     Wait according config
 History:
     2025-06-08: introduced possibility to set end_date via command line
+    2026-05-15: refactored code, added time to double current closing
 Issues:
     ...
 Runtime: 
@@ -199,7 +200,7 @@ for row in result_table.itertuples():
     ts_future['date'] = pd.date_range(start = \
         dt.date(max(ts_last['date']).year+1, max(ts_last['date']).month, \
             max(ts_last['date']).day), \
-            periods = 20, freq = "365d") # approx. 1 year intervals
+            periods = 50, freq = "365d") # approx. 1 year intervals
 
     ts_future = pd.concat([ts_future, ts])
     ts_future['eps*'] = ts_future['eps']
@@ -302,11 +303,23 @@ for row in result_table.itertuples():
         result[type]['7Y'] = np.round(ts_future.iloc[idx+1:idx+7][type].sum(),3)
         result[type]['15Y'] = np.round(ts_future.iloc[idx+1:idx+15][type].sum(),3)
         result[type]['20Y'] = np.round(ts_future.iloc[idx+1:idx+20][type].sum(),3)
+# --- example to calculate when the value doubles based on the projection ---
+        if symbol == '0175.HK':
+            print('breakpoint')
+        result[type]["Doubled"] = 50 # default value if it does not double within the projection
+        future = ts_future.iloc[idx+1:][type].cumsum()
+        try:
+            # hit = future[future >= close].index[0]-idx
+            hit = future[future >= close].index[0]
+            result[type]["Doubled"] = (close-future[hit-1])/(future[hit]-future[hit-1])+hit-idx
+        except IndexError:
+            result[type]["Doubled"] = np.nan
+# --- example to calculate when the value doubles based on the projection ---
 
     ts_future.set_index('date_ordinal', inplace = True)
 
     result_str = json.dumps(result, indent=4)
-    # print(result_str)
+    print(result_str)
 
     # decision tree
     INVESTMENT_TYPE = ''
@@ -391,7 +404,8 @@ for row in result_table.itertuples():
             'sevenYears': [result[INVESTMENT_TYPE]['7Y']], \
             'fifteenYears': [result[INVESTMENT_TYPE]['15Y']], \
             'twentyYears': [result[INVESTMENT_TYPE]['20Y']], \
-            'interest': [result[INVESTMENT_TYPE]['Value']]}
+            'interest': [result[INVESTMENT_TYPE]['Value']], \
+            'doubled': [result[INVESTMENT_TYPE]['Doubled']]}
     condensedView = pd.DataFrame(data=dataset)
 
     # DEBUG

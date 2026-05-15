@@ -23,7 +23,7 @@
       "columns_target_eps_raw": ["symbol", "date", "eps", "epsStar", "growth", "growthStar", "lastEight", "lastX", "trend", "sevenYearAvg"],
       "pk_target_eps_raw": ["symbol", "date", "created"],
       "table_target_eps": "eps_analyzed",
-      "columns_target_eps": ["symbol", "date", "type", "risk", "rsq", "close", "sevenYears", "fifteenYears", "twentyYears", "interest"],
+      "columns_target_eps": ["symbol", "date", "type", "risk", "rsq", "close", "sevenYears", "fifteenYears", "twentyYears", "interest", "doubled"],
       "pk_target_eps": ["symbol", "date", "created"],
       "delay": 7200.0
     },
