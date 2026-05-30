@@ -133,6 +133,7 @@ except:
 result_table = result_table[
     result_table["symbol_fundamental"].notna() &
     (result_table["active"] != 0)
+## & (result_table["symbol"] == "EXE")
 ]
 result_table.reset_index(drop=True, inplace=True)
 
@@ -303,15 +304,17 @@ for row in result_table.itertuples():
         result[type]['7Y'] = np.round(ts_future.iloc[idx+1:idx+7][type].sum(),3)
         result[type]['15Y'] = np.round(ts_future.iloc[idx+1:idx+15][type].sum(),3)
         result[type]['20Y'] = np.round(ts_future.iloc[idx+1:idx+20][type].sum(),3)
+ 
 # --- example to calculate when the value doubles based on the projection ---
-        if symbol == '0175.HK':
-            print('breakpoint')
         result[type]["Doubled"] = 50 # default value if it does not double within the projection
         future = ts_future.iloc[idx+1:][type].cumsum()
         try:
             # hit = future[future >= close].index[0]-idx
-            hit = future[future >= close].index[0]
-            result[type]["Doubled"] = np.round((close-future[hit-1])/(future[hit]-future[hit-1])+hit-idx, 2)
+            hit = max(future[future >= close].index[0],11) # max. catch if it doubles within 1 year
+            if hit == 11:
+                result[type]["Doubled"] = np.round(close/future[hit],2)
+            else:
+                result[type]["Doubled"] = np.round((close-future[hit-1])/(future[hit]-future[hit-1])+hit-idx, 2)
         except IndexError:
             result[type]["Doubled"] = np.nan
 # --- example to calculate when the value doubles based on the projection ---
@@ -319,7 +322,7 @@ for row in result_table.itertuples():
     ts_future.set_index('date_ordinal', inplace = True)
 
     result_str = json.dumps(result, indent=4)
-    print(result_str)
+# DEBUG    print(result_str)
 
     # decision tree
     INVESTMENT_TYPE = ''
